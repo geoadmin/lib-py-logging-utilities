@@ -1,2 +1,2 @@
-# lib-py-log-json-formatter
-Python logging JSON Formatter
+# lib-py-logging-utilities
+Python logging utilities
