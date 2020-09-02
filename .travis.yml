@@ -8,4 +8,4 @@ python:
 install:
   - pip install -r dev_requirements.txt
   - pip install .
-script: make test
+script: nose2 -s tests/
