@@ -1,5 +1,7 @@
 # Python logging utilities
 
+[![Build Status](https://travis-ci.org/geoadmin/lib-py-logging-utilities.svg?branch=master)](https://travis-ci.org/geoadmin/lib-py-logging-utilities)
+
 This package implements some usefull logging utilities. Here below are the main features of the package:
 
 - JSON formatter
