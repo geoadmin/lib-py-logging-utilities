@@ -30,6 +30,8 @@ YAPF := $(VENV)/bin/yapf
 NOSE := $(VENV)/bin/nose2
 PYLINT := $(VENV)/bin/pylint
 
+PACKAGE_VERSION = $(shell awk '/^Version:/ {print $$2}' logging_utilities.egg-info/PKG-INFO)
+
 
 all: help
 
@@ -47,7 +49,8 @@ help:
 	@echo "- format-lint        Format and lint the python source code"
 	@echo "- test               Run the tests"
 	@echo -e " \033[1mPACKAGING TARGETS\033[0m "
-	@echo "- package            Create pip package"
+	@echo "- package            Create package"
+	@echo "- publish            Tag and publish package to PyPI"
 	@echo -e " \033[1mCLEANING TARGETS\033[0m "
 	@echo "- clean              Clean genereated files"
 	@echo "- clean_venv         Clean python venv"
@@ -88,6 +91,15 @@ test: $(DEV_REQUIREMENTS_TIMESTAMP)
 .PHONY: package
 package: $(PREP_PACKAGING_TIMESTAMP)
 	python3 setup.py sdist bdist_wheel
+
+
+.PHONY: publish
+publish: clean test package
+	@echo "Tag and upload package version=$(PACKAGE_VERSION)"
+	@if [ -n "`git status --porcelain`" ]; then echo "Repo is dirty !"; exit 1; fi
+	git tag -am $(PACKAGE_VERSION) $(PACKAGE_VERSION)
+	git push origin $(PACKAGE_VERSION)
+	python3 -m twine upload --username __token__ dist/*
 
 
 # Clean targets
