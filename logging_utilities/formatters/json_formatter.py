@@ -139,7 +139,7 @@ class JsonFormatter(logging.Formatter):
                 # exc_info might be true or contain exception info. We add it here only a boolean to
                 # know if the message has exception info or not. The info itself will be in
                 # 'exc_text' and is always appended to the json output when not available
-                message['key'] = bool(record['exc_info'])
+                message[key] = bool(record.exc_info)
             elif value in record.__dict__:
                 message[key] = getattr(record, value, '')
                 if self.remove_empty and message[key] == '':
