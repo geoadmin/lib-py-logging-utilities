@@ -42,7 +42,28 @@ pip install logging-utilities
 
 ## Contribution
 
-TODO
+Every contribution to this library is welcome ! So if you find a bug or want to add a new feature everyone is welcome to open an [issue](https://github.com/geoadmin/lib-py-logging-utilities/issues) or created a [Pull Request](https://github.com/geoadmin/lib-py-logging-utilities/pulls).
+
+### Developper
+
+You can quickly setup your environment with the makefile:
+
+```bash
+make setup
+```
+
+This will create a virtual python environment with all packages required for the develpment.
+
+Note that for pull request, the code **MUST BE** with `yapf` formatted and it also **MUST PASS** the linter. For this you can use the make targets:
+
+```bash
+make format
+make lint
+#or
+make format-lint
+```
+
+Any new feature should have its unittest class in order to be tested.
 
 ## JSON Formatter
 
