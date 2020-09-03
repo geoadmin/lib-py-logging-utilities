@@ -23,13 +23,13 @@ setup(
     name='logging-utilities',
     version=get_version(VERSION_LINE),
     description=('Python logging utilities'),
-    LONG_DESCRIPTION=LONG_DESCRIPTION,
-    LONG_DESCRIPTION_content_type="text/markdown",
+    long_description=LONG_DESCRIPTION,
+    long_description_content_type="text/markdown",
     platforms=["all"],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: BSD License'
+        'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3 :: Only',
