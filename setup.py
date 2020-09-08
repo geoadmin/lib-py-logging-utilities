@@ -2,15 +2,15 @@
 
 from setuptools import setup, find_packages
 
-PACKAGE_NAME = 'logging_utilities'
-
 # Get description from README.md
 LONG_DESCRIPTION = ''
 with open('README.md', encoding='utf-8') as rd:
     LONG_DESCRIPTION = rd.read()
 
+# Here we cannot import the version but need to read it otherwise we might have an ImportError
+# during execution of the setup.py if the package contains other libaries.
 VERSION_LINE = list(filter(lambda l: l.startswith('VERSION'),
-                           open(PACKAGE_NAME + '/__init__.py')))[0]
+                           open('./logging_utilities/__init__.py')))[0]
 
 
 def get_version(version_line):
