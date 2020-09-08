@@ -98,7 +98,7 @@ class JsonFormatter(logging.Formatter):
         )
 
     @classmethod
-    def _add_extra_to_message(cls, record, extra, message):
+    def _add_extra_to_message(cls, extra, message):
         for key, value in extra.items():
             message[key] = value
 
@@ -125,7 +125,7 @@ class JsonFormatter(logging.Formatter):
 
     def _add_object_to_message(self, record, obj, message):
         for key, value in obj.items():
-            if isinstance(value, (dict, dictionary)):
+            if isinstance(value, (dict, OrderedDict)):
                 message[key] = dictionary()
                 self._add_object_to_message(record, value, message[key])
                 if self.remove_empty and len(message[key]) == 0:
@@ -168,7 +168,7 @@ class JsonFormatter(logging.Formatter):
         message = self.formatMessage(record)
 
         if self.add_always_extra:
-            self._add_extra_to_message(record, extra, message)
+            self._add_extra_to_message(extra, message)
 
         if record.exc_info:
             # Cache the traceback text to avoid converting it multiple times

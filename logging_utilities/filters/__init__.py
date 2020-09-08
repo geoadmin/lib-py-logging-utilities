@@ -83,6 +83,9 @@ class LevelFilter(logging.Filter):
             self.level = logging.getLevelName(self.level)
             if not isinstance(self.level, int):
                 raise ValueError('Unsupported level string')
+        elif isinstance(self.level, int) \
+            and logging.getLevelName(self.level) == "Level %d" % (self.level):
+            raise ValueError('Undefined level integer')
 
         self.logger = logger
         super().__init__()

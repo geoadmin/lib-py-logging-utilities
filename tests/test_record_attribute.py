@@ -6,7 +6,7 @@ from logging_utilities.filters import ConstAttribute
 from logging_utilities.filters.flask_attribute import FlaskRequestAttribute
 
 
-class RecorAttributesTest(unittest.TestCase):
+class RecordAttributesTest(unittest.TestCase):
 
     @classmethod
     def _configure_const_attribute(cls, logger):
