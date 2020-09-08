@@ -6,8 +6,10 @@ SHELL = /bin/bash
 CURRENT_DIR := $(shell pwd)
 VENV := $(CURRENT_DIR)/.venv
 DEV_REQUIREMENTS = $(CURRENT_DIR)/dev_requirements.txt
-TEST_REPORT_DIR := $(CURRENT_DIR)/tests/report
-TEST_REPORT_FILE := nose2-junit.xml
+
+# Test reports configuration
+TEST_REPORT_DIR ?= $(CURRENT_DIR)/tests/report
+TEST_REPORT_FILE ?= nose2-junit.xml
 
 # venv targets timestamps
 VENV_TIMESTAMP = $(VENV)/.timestamp
