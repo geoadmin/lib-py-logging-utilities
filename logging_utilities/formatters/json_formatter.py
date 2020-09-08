@@ -116,12 +116,34 @@ class JsonFormatter(logging.Formatter):
             return extras
         return dictionary((key, extras[key]) for key in sorted(extras.keys()))
 
-    def _add_list_to_message(self, record, fmt, message):
-        for value in fmt:
-            int_msg = dictionary()
-            self._add_object_to_message(record, value, int_msg)
-            if len(int_msg) > 0:
-                message.append(int_msg)
+    def _add_list_to_message(self, record, lst, message):
+        for value in lst:
+            if isinstance(value, (dict, OrderedDict)):
+                intermediate_msg = dictionary()
+                self._add_object_to_message(record, value, intermediate_msg)
+                if not self.remove_empty or len(intermediate_msg) > 0:
+                    message.append(intermediate_msg)
+            elif isinstance(value, list):
+                intermediate_msg = list()
+                self._add_list_to_message(record, value, intermediate_msg)
+                if not self.remove_empty or len(intermediate_msg) > 0:
+                    message.append(intermediate_msg)
+            elif value == 'exc_info':
+                # exc_info might be true or contain exception info. We add it here only a boolean to
+                # know if the message has exception info or not. The info itself will be in
+                # 'exc_text' and is always appended to the json output when not available
+                message.append(bool(record.exc_info))
+            elif value in record.__dict__:
+                intermediate_msg = getattr(record, value, None)
+                if not self.remove_empty or intermediate_msg is not None:
+                    message.append(intermediate_msg)
+            elif isinstance(value, str):
+                # When the value is a string it can contain formatting strings (e.g. "%(asctime)s")
+                # therefore try to format it.
+                self._style._fmt = value  # pylint: disable=protected-access
+                intermediate_msg = super().formatMessage(record)
+                if not self.remove_empty or intermediate_msg != '':
+                    message.append(intermediate_msg)
 
     def _add_object_to_message(self, record, obj, message):
         for key, value in obj.items():
