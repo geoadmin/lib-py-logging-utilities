@@ -10,13 +10,14 @@ from logging_utilities.formatters import RECORD_DFT_ATTR
 if sys.version_info < (3, 0):
     raise ImportError('Only python 3 is supported')
 
-# From python3.7, dict is ordered
+# From python3.7, dict is ordered. Ordered dict are prefered in order to keep the json output
+# in the same order as its definition
 if sys.version_info >= (3, 7):
     dictionary = dict
 else:
     dictionary = OrderedDict
 
-DEFAULT_FMT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
+DEFAULT_FORMAT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
 
 
 class JsonFormatter(logging.Formatter):
@@ -65,6 +66,7 @@ class JsonFormatter(logging.Formatter):
 
         Raises:
             TypeError:  When the fmt parameter is in a wrong type
+            json.decoder.JSONDecodeError: When fmt is a string that don't describe a json object
         """
         super().__init__(fmt='', datefmt=datefmt, style=style)
 
@@ -80,7 +82,7 @@ class JsonFormatter(logging.Formatter):
     def _parse_fmt(cls, fmt):
         if isinstance(fmt, str):
             return json.loads(fmt, object_pairs_hook=dictionary)
-        if isinstance(fmt, dictionary):
+        if isinstance(fmt, (dictionary, OrderedDict)):
             return fmt
         if isinstance(fmt, dict):
             warnings.warn(
@@ -90,7 +92,7 @@ class JsonFormatter(logging.Formatter):
             )
             return dictionary((k, fmt[k]) for k in sorted(fmt.keys()))
         if fmt is None:
-            return DEFAULT_FMT
+            return DEFAULT_FORMAT
 
         raise TypeError(
             '`{}` type is not supported, `fmt` must be json `str`, `OrderedDcit` or `dict` type.'.
@@ -285,7 +287,7 @@ def basic_config(**kwargs):
         style = kwargs.pop("style", '%')
         if style not in logging._STYLES:
             raise ValueError('Style must be one of: %s' % ','.join(logging._STYLES.keys()))
-        fmt = kwargs.pop("format", DEFAULT_FMT)
+        fmt = kwargs.pop("format", DEFAULT_FORMAT)
         formatter = JsonFormatter(fmt, dfs, style)
         for handler in handlers:
             if handler.formatter is None:
