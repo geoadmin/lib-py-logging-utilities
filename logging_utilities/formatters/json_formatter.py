@@ -3,6 +3,7 @@ import logging
 import logging.config
 import sys
 import warnings
+from collections import OrderedDict
 
 from logging_utilities.formatters import RECORD_DFT_ATTR
 
@@ -13,7 +14,6 @@ if sys.version_info < (3, 0):
 if sys.version_info >= (3, 7):
     dictionary = dict
 else:
-    from collections import OrderedDict
     dictionary = OrderedDict
 
 DEFAULT_FMT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
