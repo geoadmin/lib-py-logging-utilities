@@ -53,7 +53,7 @@ You can quickly setup your environment with the makefile:
 make setup
 ```
 
-This will create a virtual python environment with all packages required for the develpment.
+This will create a virtual python environment with all packages required for the development.
 
 Note that for pull request, the code **MUST BE** with `yapf` formatted and it also **MUST PASS** the linter. For this you can use the make targets:
 
@@ -93,12 +93,12 @@ You can change some behavior using the `JsonFormatter` constructor:
 
 | Parameter | Type | Default | Description                                       |
 |-----------|------|---------|---------------------------------------------------|
-| fmt       | dict | `None`  | Define the output format, see [Configure JSON Format](#configure-json-format) |
-| datefmt   | string | `None`  | Date format for `asctime`, see [time.strftime()](https://docs.python.org/3.7/library/time.html#time.strftime) |
-| style     | string | `%`     | String formatting style, see [logging.Formatter](https://docs.python.org/3.7/library/logging.html#logging.Formatter) |
-| add_always_extra | bool |`False` | When `True`, logging extra (`logging.log('message', extra={'my-extra': 'some value'})`) are always added to the output. Otherwise they are only added if present in `fmt`. |
-| filter_attributes | list | `None` | When the formatter is used with a _Logging.Filter_ that adds _LogRecord_ attributes, they can be listed here to avoid to be treated as logging _extra_. |
-| remove_empty | bool | `False` | When `True`, empty values (empty list, dict, None or empty string) are removed from output. |
+| `fmt`       | dict | `None`  | Define the output format, see [Configure JSON Format](#configure-json-format) |
+| `datefmt`   | string | `None`  | Date format for `asctime`, see [time.strftime()](https://docs.python.org/3.7/library/time.html#time.strftime) |
+| `style`     | string | `%`     | String formatting style, see [logging.Formatter](https://docs.python.org/3.7/library/logging.html#logging.Formatter) |
+| `add_always_extra` | bool |`False` | When `True`, logging extra (`logging.log('message', extra={'my-extra': 'some value'})`) are always added to the output. Otherwise they are only added if present in `fmt`. |
+| `filter_attributes` | list | `None` | When the formatter is used with a _Logging.Filter_ that adds _LogRecord_ attributes, they can be listed here to avoid to be treated as logging _extra_. |
+| `remove_empty` | bool | `False` | When `True`, empty values (empty list, dict, None or empty string) are removed from output. |
 
 The constructor parameters can be also be specified in the log configuration file using the `()` class specifier instead of `class`:
 
@@ -153,8 +153,8 @@ This Filter can be used to achieve the full ISO 8601 Time format including timez
 
 | Parameter   | Type | Default | Description                                    |
 |-------------|------|---------|------------------------------------------------|
-| isotime     | bool | True    | Add log local time as `isotime` attribute to _LogRecord_ with the `YYYY-MM-DDThh:mm:ss.sss±hh:mm` format. |
-| utc_isotime | bool | False   | Add log UTC time as `utc_isotime` attribute to _LogRecord_ with the `YYYY-MM-DDThh:mm:ss.sss±hh:mm` format. |
+| `isotime`     | bool | True    | Add log local time as `isotime` attribute to _LogRecord_ with the `YYYY-MM-DDThh:mm:ss.sss±hh:mm` format. |
+| `utc_isotime` | bool | False   | Add log UTC time as `utc_isotime` attribute to _LogRecord_ with the `YYYY-MM-DDThh:mm:ss.sss±hh:mm` format. |
 
 ### ISO Time Config Example
 
@@ -192,7 +192,7 @@ Sometimes you might want to have different log Level based on the logger and han
 | Parameter   | Type | Default | Description                                    |
 |-------------|------|---------|------------------------------------------------|
 | level       | int \| string | `'DEBUG'` | All messages with a lower level than this one will be filtered out. |
-| logger | string | `''` | When non empty, only message from this logger will be fitlered out based on their level. |
+| logger | string | `''` | When non empty, only message from this logger will be filtered out based on their level. |
 
 ### Logger Level Filter Config Example
 
@@ -235,7 +235,7 @@ handlers:
 ```python
 import logging
 
-from logging_utilites.formatters.json_formatter import basic_config
+from logging_utilities.formatters.json_formatter import basic_config
 
 # default keyword parameter `format`: """{"levelname": "levelname", "name": "name", "message": "message"}"""
 basic_config(level=logging.INFO)
@@ -253,7 +253,7 @@ output:
 ```python
 import logging
 
-from logging_utilites.formatters.json_formatter import JsonFormatter
+from logging_utilities.formatters.json_formatter import JsonFormatter
 
 # `FORMAT` can be `json`, `OrderedDict` or `dict`.
 # If `FORMAT` is `dict` and python version < 3.7.0, the output order is sorted by keys, otherwise it will be the same

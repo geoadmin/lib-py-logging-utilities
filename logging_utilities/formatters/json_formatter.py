@@ -10,7 +10,7 @@ from logging_utilities.formatters import RECORD_DFT_ATTR
 if sys.version_info < (3, 0):
     raise ImportError('Only python 3 is supported')
 
-# From python3.7, dict is ordered. Ordered dict are prefered in order to keep the json output
+# From python3.7, dict is ordered. Ordered dict are preferred in order to keep the json output
 # in the same order as its definition
 if sys.version_info >= (3, 7):
     dictionary = dict
@@ -40,8 +40,8 @@ class JsonFormatter(logging.Formatter):
 
         Args:
             fmt: (dict)
-                Format for the json ouptut. It can be a string representing a json object or
-                a dictionary. The obect defines the JSON output:
+                Format for the json output. It can be a string representing a json object or
+                a dictionary. The object defines the JSON output:
                     KEY   := key to use in the json output
                     VALUE := value to use in the json output, this can be either a static string,
                              a record attribute name or a format string
@@ -62,7 +62,7 @@ class JsonFormatter(logging.Formatter):
             remove_empty: (bool)
                     If true the empty list, object or string in the output message are removed
             kwargs:
-                Addtional parameters passed to json.dumps()
+                Additional parameters passed to json.dumps()
 
         Raises:
             TypeError:  When the fmt parameter is in a wrong type
@@ -95,7 +95,7 @@ class JsonFormatter(logging.Formatter):
             return DEFAULT_FORMAT
 
         raise TypeError(
-            '`{}` type is not supported, `fmt` must be json `str`, `OrderedDcit` or `dict` type.'.
+            '`{}` type is not supported, `fmt` must be json `str`, `OrderedDict` or `dict` type.'.
             format(type(fmt))
         )
 
@@ -216,12 +216,12 @@ def basic_config(**kwargs):
     configured. It is a convenience method intended for use by simple scripts
     to do one-shot configuration of the logging package.
 
-    The default behaviour is to create a StreamHandler which writes to
+    The default behavior is to create a StreamHandler which writes to
     sys.stderr, set a formatter using the BASIC_FORMAT format string, and
     add the handler to the root logger.
 
     A number of optional keyword arguments may be specified, which can alter
-    the default behaviour.
+    the default behavior.
 
     Args:
         filename:
@@ -298,6 +298,6 @@ def basic_config(**kwargs):
             logging.root.setLevel(level)
         if kwargs:
             keys = ', '.join(kwargs.keys())
-            raise ValueError('Unrecognised argument(s): %s' % keys)
+            raise ValueError('Unrecognized argument(s): %s' % keys)
     finally:
         logging._releaseLock()
