@@ -1,7 +1,7 @@
 import logging
 
-from flask import request
 from flask import has_request_context
+from flask import request
 
 
 class FlaskRequestAttribute(logging.Filter):

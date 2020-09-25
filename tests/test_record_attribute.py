@@ -1,5 +1,5 @@
-import unittest
 import logging
+import unittest
 from logging import Formatter
 
 from logging_utilities.filters import ConstAttribute

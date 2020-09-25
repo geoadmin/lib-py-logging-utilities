@@ -4,8 +4,8 @@ import sys
 import unittest
 from collections import OrderedDict
 
-from logging_utilities.formatters.json_formatter import JsonFormatter
 from logging_utilities.filters import ConstAttribute
+from logging_utilities.formatters.json_formatter import JsonFormatter
 
 # From python3.7, dict is ordered
 if sys.version_info >= (3, 7):
