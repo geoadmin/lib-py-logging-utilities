@@ -2,3 +2,5 @@ Flask
 nose2
 pylint
 yapf
+Django
+rope

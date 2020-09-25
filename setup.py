@@ -9,8 +9,9 @@ with open('README.md', encoding='utf-8') as rd:
 
 # Here we cannot import the version but need to read it otherwise we might have an ImportError
 # during execution of the setup.py if the package contains other libaries.
-VERSION_LINE = list(filter(lambda l: l.startswith('VERSION'),
-                           open('./logging_utilities/__init__.py')))[0]
+VERSION_LINE = list(
+    filter(lambda l: l.startswith('VERSION'), open('./logging_utilities/__init__.py'))
+)[0]
 
 
 def get_version(version_line):

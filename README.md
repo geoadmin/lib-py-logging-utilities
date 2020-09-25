@@ -3,10 +3,11 @@
 [![Build Status](https://travis-ci.org/geoadmin/lib-py-logging-utilities.svg?branch=master)](https://travis-ci.org/geoadmin/lib-py-logging-utilities)
 [![PyPI version](https://badge.fury.io/py/logging-utilities.svg)](https://badge.fury.io/py/logging-utilities)
 
-This package implements some usefull logging utilities. Here below are the main features of the package:
+This package implements some useful logging utilities. Here below are the main features of the package:
 
 - JSON formatter
 - Flask request context record attributes
+- Jsonify Django request record attribute
 - ISO Time in format `YYYY-MM-DDThh:mm:ss.sss±hh:mm`
 - Add constant record attributes
 - Logger Level Filter
@@ -21,6 +22,7 @@ All features can be fully configured from the configuration file.
 - [Contribution](#contribution)
 - [JSON Formatter](#json-formatter)
 - [Flask Request Context](#flask-request-context)
+- [Jsonify Django Request](#jsonify-django-request)
 - [ISO Time with Timezone](#iso-time-with-timezone)
 - [Constant Record Attribute](#constant-record-attribute)
 - [Logger Level Filter](#logger-level-filter)
@@ -29,6 +31,7 @@ All features can be fully configured from the configuration file.
   - [Case 2. JSON Output Configured within Python Code](#case-2-json-output-configured-within-python-code)
   - [Case 3. JSON Output Configured with a YAML File](#case-3-json-output-configured-with-a-yaml-file)
   - [Case 4. Add Flask Request Context Attributes to JSON Output](#case-4-add-flask-request-context-attributes-to-json-output)
+  - [Case 5. Add Django Request to JSON Output](#case-5-add-django-request-to-json-output)
 - [Credits](#credits)
 
 ## Installation
@@ -45,7 +48,7 @@ pip install logging-utilities
 
 Every contribution to this library is welcome ! So if you find a bug or want to add a new feature everyone is welcome to open an [issue](https://github.com/geoadmin/lib-py-logging-utilities/issues) or created a [Pull Request](https://github.com/geoadmin/lib-py-logging-utilities/pulls).
 
-### Developper
+### Developer
 
 You can quickly setup your environment with the makefile:
 
@@ -70,7 +73,7 @@ Any new feature should have its unittest class in order to be tested.
 
 **JsonFormatter** is a python logging formatter that transform the log output into a json object.
 
-JSON log format is quite usefull especially when the logs are sent to **LogStash**.
+JSON log format is quite useful especially when the logs are sent to **LogStash**.
 
 This formatter supports embedded object as well as array.
 
@@ -142,6 +145,44 @@ filters:
 ```
 
 **NOTE**: `FlaskRequestAttribute` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
+
+## Jsonify Django Request
+
+If you want to log the [Django](https://www.djangoproject.com/) [HttpRequest](https://docs.djangoproject.com/en/3.1/ref/request-response/#httprequest-objects) object using the [JSON Formatter](#json-formatter), this filter is for made for you. It converts the `record.request` attribute to a valid json object or a string if the attribute is not an `HttpRequest` instance. It is also useful when using Django with the JSON Formatter because Django adds in some of its logs either an HttpRequest object to the log extra or a socket object.
+
+The `HttpRequest` attributes that are converted can be configured using the `include_keys` and/or `exclude_keys` filter parameters. This can be useful if you want to limit the log data, for example if you don't want to log Authentication headers.
+
+### Usage
+
+Add the filter to the log handler and then add simply the `HttpRequest` to the log extra as follow:
+
+```python
+logger.info('My message', extra={'request': request})
+```
+
+### Django Request Filter Constructor
+
+| Parameter      | Type | Default | Description                                    |
+|----------------|------|---------|------------------------------------------------|
+| `include_keys` | list | None    | All request attributes that match any of the dotted keys of the list will be jsonify in the `record.request`. When `None` then all attributes are added (default behavior). |
+| `exclude_keys` | list | None    | All request attributes that match any of the dotted keys of the list will not be added to the jsonify of the `record.request`. **NOTE** this has precedence to `include_keys` which means that if a key is in both list, then it is not added. |
+
+### Django Request Config Example
+
+```yaml
+filters:
+  django:
+    (): logging_utilities.filters.django_request.JsonDjangoRequest
+    include_keys:
+      - request.META.REQUEST_METHOD
+      - request.META.SERVER_NAME
+      - request.environ
+    exclude_keys:
+      - request.META.SERVER_NAME
+      - request.environ.wsgi
+```
+
+**NOTE**: `JsonDjangoRequest` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
 
 ## ISO Time with Timezone
 
@@ -440,6 +481,97 @@ output:
 
 ```shell
 {"function": "<module>", "level": "INFO", "logger": "root", "message": "Test file config", "module": "<stdin>", "process": 24190, "request": {"url": "", "method": "", "headers": "", "data": "", "remote": ""}, "thread": 140163374577472, "time": "isotime"}
+```
+
+### Case 5. Add Django Request to JSON Output
+
+config.yaml
+
+```yaml
+version: 1
+
+root:
+  handlers:
+    - console
+  level: DEBUG
+  propagate: True
+
+filters:
+  isotime:
+    (): logging_utilities.filters.TimeAttribute
+  django:
+    (): logging_utilities.filters.django_request.JsonDjangoRequest
+    include_keys:
+      - request.path
+      - request.method
+      - request.headers
+    exclude_keys:
+      - request.headers.Authorization
+      - request.headers.Proxy-Authorization
+
+formatters:
+  json:
+    class: logging_utilities.formatters.json_formatter.JsonFormatter
+    format:
+      time: isotime
+      level: levelname
+      logger: name
+      module: module
+      function: funcName
+      process: process
+      thread: thread
+      request: request
+      response: response
+      message: message
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: json
+    stream: ext://sys.stdout
+    filters:
+      - isotime
+      - django
+```
+
+**NOTE:** This require to have `django` package installed otherwise it raises `ImportError`
+
+Then in your python code use it as follow:
+
+```python
+import logging
+import logging.config
+
+import yaml
+
+from django.http import JsonResponse
+from django.conf import settings
+from django.test import RequestFactory
+
+
+config = {}
+with open('example-config.yaml', 'r') as fd:
+    config = yaml.safe_load(fd.read())
+
+logging.config.dictConfig(config)
+
+logger = logging.getLogger('your_logger')
+
+def my_page(request):
+    answer = {'success': True}
+    logger.info('My page requested', extra={'request': request, 'response': answer})
+    return JsonResponse(answer)
+
+settings.configure()
+factory = RequestFactory()
+
+my_page(factory.get('/my_page?test=true'))
+```
+
+output:
+
+```shell
+{"function": "my_page", "level": "INFO", "logger": "your_logger", "message": "My page requested", "module": "<stdin>", "process": 20421, "request": {"method": "GET", "path": "/my_page", "headers": {"Cookie": ""}}, "response": {"success": true}, "thread": 140433370822464, "time": "2020-10-12T16:44:45.374508+02:00"}
 ```
 
 ## Credits
