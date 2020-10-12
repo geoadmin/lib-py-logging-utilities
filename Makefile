@@ -22,8 +22,8 @@ PREP_PACKAGING_TIMESTAMP = $(TIMESTAMPS)/.prep-packaging.timestamp
 # Find all python files that are not inside a hidden directory (directory starting with .)
 PYTHON_FILES := $(shell find ./* -type d \( -path ./build -o -path ./dist \) -prune -false -o -type f -name "*.py" -print)
 
-PYTHON_VERSION := 3
-SYSTEM_PYTHON := python3
+PYTHON_VERSION ?= 3
+SYSTEM_PYTHON := python$(PYTHON_VERSION)
 
 # Commands
 PYTHON := $(VENV)/bin/python3
@@ -85,7 +85,7 @@ format-lint: format lint
 .PHONY: test
 test: $(DEV_REQUIREMENTS_TIMESTAMP)
 	mkdir -p $(TEST_REPORT_DIR)
-	$(NOSE) -c tests/unittest.cfg --plugin nose2.plugins.junitxml --junit-xml --junit-xml-path $(TEST_REPORT_DIR)/$(TEST_REPORT_FILE) -s tests/
+	$(NOSE) -v -c tests/unittest.cfg --junit-xml-path $(TEST_REPORT_DIR)/$(TEST_REPORT_FILE) -s tests/
 
 
 # Packaging target
