@@ -70,6 +70,8 @@ class JsonDjangoRequest(logging.Filter):
 
     def _jsonify_dict(self, prefix, dct):
         json_obj = dictionary()
+        if sys.version_info < (3, 7):
+            dct = OrderedDict(sorted(dct.items(), key=lambda t: t[0]))
         for key, value in dct.items():
             dotted_key = '{}.{}'.format(prefix, key)
             if not self._add_key(dotted_key, key):

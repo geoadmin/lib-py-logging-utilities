@@ -18,6 +18,8 @@ else:
 
 settings.configure()
 
+logger = logging.getLogger(__name__)
+
 
 class RecordDjangoAttributesTest(unittest.TestCase):
 
@@ -26,10 +28,10 @@ class RecordDjangoAttributesTest(unittest.TestCase):
         self.factory = RequestFactory()
 
     @classmethod
-    def _configure_django_filter(cls, logger, include_keys=None, exclude_keys=None):
-        logger.setLevel(logging.DEBUG)
+    def _configure_django_filter(cls, _logger, include_keys=None, exclude_keys=None):
+        _logger.setLevel(logging.DEBUG)
 
-        for handler in logger.handlers:
+        for handler in _logger.handlers:
             django_filter = JsonDjangoRequest(include_keys=include_keys, exclude_keys=exclude_keys)
             handler.addFilter(django_filter)
             formatter = JsonFormatter(
@@ -87,20 +89,22 @@ class RecordDjangoAttributesTest(unittest.TestCase):
     def test_django_request_jsonify(self):
         request = self.factory.get('/my_path?test=true&test_2=false')
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
-            logger = logging.getLogger('test_formatter')
+            test_logger = logging.getLogger('test_formatter')
             self._configure_django_filter(
-                logger,
+                test_logger,
                 include_keys=[
                     'request.META.REQUEST_METHOD', 'request.META.SERVER_NAME', 'request.environ'
                 ],
                 exclude_keys=['request.META.SERVER_NAME', 'request.environ.wsgi']
             )
-            logger.info('Simple message', extra={'request': request})
-            logger.info(
+            test_logger.info('Simple message', extra={'request': request})
+            test_logger.info(
                 'Composed message: %s', 'this is a composed message', extra={'request': request}
             )
         message1 = json.loads(ctx.output[0], object_pairs_hook=dictionary)
         message2 = json.loads(ctx.output[1], object_pairs_hook=dictionary)
+        logger.debug('message1=%s', message1)
+        logger.debug('message2=%s', message2)
         self.assertDictEqual(
             message1,
             dictionary([
@@ -108,16 +112,24 @@ class RecordDjangoAttributesTest(unittest.TestCase):
                 ("message", "Simple message"),
                 (
                     "request",
-                    dictionary([(
-                        "environ",
-                        dictionary([("HTTP_COOKIE", ""), ("PATH_INFO", "/my_path"),
-                                    ("REMOTE_ADDR", "127.0.0.1"), ("REQUEST_METHOD", "GET"),
-                                    ("SCRIPT_NAME", ""), ("SERVER_NAME", "testserver"),
-                                    ("SERVER_PORT", "80"), ("SERVER_PROTOCOL", "HTTP/1.1"),
-                                    ("QUERY_STRING", "test=true&test_2=false")])
-                    ), ("META", dictionary([("REQUEST_METHOD", "GET")]))])
+                    dictionary([("META", dictionary([("REQUEST_METHOD", "GET")])),
+                                (
+                                    "environ",
+                                    dictionary([
+                                        ("HTTP_COOKIE", ""),
+                                        ("PATH_INFO", "/my_path"),
+                                        ("QUERY_STRING", "test=true&test_2=false"),
+                                        ("REMOTE_ADDR", "127.0.0.1"),
+                                        ("REQUEST_METHOD", "GET"),
+                                        ("SCRIPT_NAME", ""),
+                                        ("SERVER_NAME", "testserver"),
+                                        ("SERVER_PORT", "80"),
+                                        ("SERVER_PROTOCOL", "HTTP/1.1"),
+                                    ])
+                                )])
                 ),
-            ])
+            ]),
+            msg="First message differ"
         )
         self.assertDictEqual(
             message2,
@@ -125,13 +137,21 @@ class RecordDjangoAttributesTest(unittest.TestCase):
                         ("message", "Composed message: this is a composed message"),
                         (
                             "request",
-                            dictionary([(
-                                "environ",
-                                dictionary([("HTTP_COOKIE", ""), ("PATH_INFO", "/my_path"),
-                                            ("REMOTE_ADDR", "127.0.0.1"), ("REQUEST_METHOD", "GET"),
-                                            ("SCRIPT_NAME", ""), ("SERVER_NAME", "testserver"),
-                                            ("SERVER_PORT", "80"), ("SERVER_PROTOCOL", "HTTP/1.1"),
-                                            ("QUERY_STRING", "test=true&test_2=false")])
-                            ), ("META", dictionary([("REQUEST_METHOD", "GET")]))])
-                        )])
+                            dictionary([("META", dictionary([("REQUEST_METHOD", "GET")])),
+                                        (
+                                            "environ",
+                                            dictionary([
+                                                ("HTTP_COOKIE", ""),
+                                                ("PATH_INFO", "/my_path"),
+                                                ("QUERY_STRING", "test=true&test_2=false"),
+                                                ("REMOTE_ADDR", "127.0.0.1"),
+                                                ("REQUEST_METHOD", "GET"),
+                                                ("SCRIPT_NAME", ""),
+                                                ("SERVER_NAME", "testserver"),
+                                                ("SERVER_PORT", "80"),
+                                                ("SERVER_PROTOCOL", "HTTP/1.1"),
+                                            ])
+                                        )])
+                        )]),
+            msg="Second message differ"
         )
