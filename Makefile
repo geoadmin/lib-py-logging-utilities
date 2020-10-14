@@ -11,6 +11,10 @@ DEV_REQUIREMENTS = $(CURRENT_DIR)/dev_requirements.txt
 TEST_REPORT_DIR ?= $(CURRENT_DIR)/tests/report
 TEST_REPORT_FILE ?= nose2-junit.xml
 
+# PyPI credentials
+PYPI_USER ?=
+PYPI_PASSWORD ?=
+
 # venv targets timestamps
 VENV_TIMESTAMP = $(VENV)/.timestamp
 DEV_REQUIREMENTS_TIMESTAMP = $(VENV)/.dev-requirements.timestamp
@@ -96,10 +100,14 @@ package: $(PREP_PACKAGING_TIMESTAMP)
 
 
 .PHONY: publish
-publish: clean test package
+publish: publish-check clean test package
 	@echo "Tag and upload package version=$(PACKAGE_VERSION)"
-	@if [ -n "`git status --porcelain`" ]; then echo "Repo is dirty !"; exit 1; fi
-	python3 -m twine upload dist/*
+	@# Check if we use interactive credentials or not
+	@if [ -n "$(PYPI_PASSWORD)" ]; then \
+	    python3 -m twine upload -u $(PYPI_USER) -p $(PYPI_PASSWORD) dist/*; \
+	else \
+	    python3 -m twine upload dist/*; \
+	fi
 	git tag -am $(PACKAGE_VERSION) $(PACKAGE_VERSION)
 	git push origin $(PACKAGE_VERSION)
 
@@ -144,3 +152,11 @@ $(PREP_PACKAGING_TIMESTAMP): $(TIMESTAMPS)
 	@touch $(PREP_PACKAGING_TIMESTAMP)
 
 
+publish-check:
+	@echo "Check if publish is allowed"
+	@if [ -n "`git status --porcelain`" ]; then echo "ERROR: Repo is dirty !" >&2; exit 1; fi
+	@# "Check if TAG=${PACKAGE_VERSION} already exits"
+	@if [ -n "`git ls-remote --tags --refs origin refs/tags/${PACKAGE_VERSION}`" ]; then \
+		echo "ERROR: Tag ${PACKAGE_VERSION} already exists on remote" >&2;  \
+		exit 1; \
+	fi

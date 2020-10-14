@@ -19,6 +19,7 @@ All features can be fully configured from the configuration file.
 ## Table of content
 
 - [Installation](#installation)
+- [Release and Publish](#release-and-publish)
 - [Contribution](#contribution)
 - [JSON Formatter](#json-formatter)
 - [Flask Request Context](#flask-request-context)
@@ -44,9 +45,30 @@ Use pip to install:
 pip install logging-utilities
 ```
 
+## Release and Publish
+
+Only owners are allowed to publish a new version to PyPI. To publish a new version follow the procedure below:
+
+1. Increase the `VERSION` in `logging_utilities/__init__.py`
+    - Major version for outbreak changes in the user interface (no backward compatibility)
+    - Minor version for new features
+    - Patch version for bug fixes
+    - For alpha version append `alpha1` to `VERSION`
+1. Commit and push the changes to `develop` branch
+1. Merge `develop` to  `master`
+1. From `master` branch enter
+
+    ```shell
+    summon -p gopass -u make publish
+    ```
+
+**NOTE**: this requires to have `summon`, `gopass` and the correct `secrets.yml` file in a parent folder.
+
 ## Contribution
 
 Every contribution to this library is welcome ! So if you find a bug or want to add a new feature everyone is welcome to open an [issue](https://github.com/geoadmin/lib-py-logging-utilities/issues) or created a [Pull Request](https://github.com/geoadmin/lib-py-logging-utilities/pulls).
+
+Any contribution must follow the [git-flow](https://nvie.com/posts/a-successful-git-branching-model/#the-main-branches).
 
 ### Developer
 
