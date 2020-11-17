@@ -205,7 +205,13 @@ class JsonFormatter(logging.Formatter):
         if record.stack_info:
             message['stack_info'] = self.formatStack(record.stack_info)
 
-        return json.dumps(message, **self.kwargs)
+        # When adding all extras, to avoid crash when a log message adds an extra with a non
+        # serializable object, we add a default serializer.
+        default = self.kwargs.pop('default', None)
+        if self.add_always_extra and default is None:
+            default = str
+
+        return json.dumps(message, default=default, **self.kwargs)
 
 
 def basic_config(**kwargs):
