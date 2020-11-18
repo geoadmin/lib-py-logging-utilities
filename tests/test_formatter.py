@@ -263,3 +263,28 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ("message", "Composed message leave empty"),
             ])
         )
+
+    def test_non_serializable_extra(self):
+
+        class TestObject:
+
+            def __str__(self):
+                return 'Test Object'
+
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(logger, add_always_extra=True)
+            logger.info(
+                'Composed message %s',
+                'with non serializable extra',
+                extra=dictionary([('test-object', TestObject())])
+            )
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([
+                ("levelname", "INFO"),
+                ('name', 'test_formatter'),
+                ("message", "Composed message with non serializable extra"),
+                ('test-object', 'Test Object'),
+            ])
+        )
