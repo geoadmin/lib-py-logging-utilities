@@ -6,6 +6,7 @@
 This package implements some useful logging utilities. Here below are the main features of the package:
 
 - JSON formatter
+- Text formatter with `extra`
 - Flask request context record attributes
 - Jsonify Django request record attribute
 - ISO Time in format `YYYY-MM-DDThh:mm:ss.sss±hh:mm`
@@ -22,6 +23,7 @@ All features can be fully configured from the configuration file.
 - [Release and Publish](#release-and-publish)
 - [Contribution](#contribution)
 - [JSON Formatter](#json-formatter)
+- [Extra Formatter](#extra-formatter)
 - [Flask Request Context](#flask-request-context)
 - [Jsonify Django Request](#jsonify-django-request)
 - [ISO Time with Timezone](#iso-time-with-timezone)
@@ -33,6 +35,8 @@ All features can be fully configured from the configuration file.
   - [Case 3. JSON Output Configured with a YAML File](#case-3-json-output-configured-with-a-yaml-file)
   - [Case 4. Add Flask Request Context Attributes to JSON Output](#case-4-add-flask-request-context-attributes-to-json-output)
   - [Case 5. Add Django Request to JSON Output](#case-5-add-django-request-to-json-output)
+  - [Case 6. Add all Log Extra as Dictionary to the Standard Formatter](#case-6-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
+  - [Case 7. Add Specific Log Extra to the Standard Formatter](#case-7-add-specific-log-extra-to-the-standard-formatter)
 - [Credits](#credits)
 
 ## Installation
@@ -139,6 +143,49 @@ formatters:
       module: module
       message: message
 ```
+
+## Extra Formatter
+
+This formatter enhance the python standard formatter to allow working with the log `extra`.
+When adding an `extra` keyword in the format, the python standard formatter raises a `ValueError()`
+when this keyword is missing from log record. This means that if you want to display a log
+`extra`, you have to make sure that every log message contains this `extra`.
+
+This formatter allow you to provide an `extra_fmt` parameter that will add record `extra` to the
+log message when available. You can either add the entire extra dictionary: `extra_fmt='%s'` or
+only some extras: `extra_fmt='%(extra1)s:%(extra2)s'`. In the latest case, when a key is missing
+in extra, the value is replaced by `extra_default`.
+
+When using the whole `extra` dictionary, you can use `extra_pretty_print` to improve the
+formatting, note that in this case the log might be on multiline (this use `pprint.pformat`).
+
+See [logging.Logger.debug](https://docs.python.org/3.8/library/logging.html#logging.Logger.debug) for more infos on the logging `extra`
+
+### Extra Formatter Constructor
+
+Support the same arguments as the [logging.Formatter](https://docs.python.org/3.5/library/logging.html#logging.Formatter)
+plus the followings:
+
+| Parameter  | Type     | Default | Description                                    |
+|------------|----------|---------|------------------------------------------------|
+| extra_fmt  | None\|str | None    | When not `None`, adds the `extra` at the end of the log message. Either uses named placeholder with the extra keywords or add the whole `extra` directory using `%s`. |
+| extra_default | None\|str | '' | When `extra_fmt` contains named placeholders and one or more of these placeholders are not found in the log record, then the formatter uses this default value instead. |
+| extra_default | any | '' | When using `extra_fmt` with named placeholders and a keyword is missing in the log record, it is then replaced by this value. |
+| extra_pretty_print | boolean | False | When `extra_fmt='%s'` you can set this flag to `True` to use `pprint.pformat` on the dictionary. |
+| pretty_print_kwargs | None\|dict | None | kwargs as dictionary to pass to [pprint.pformat](https://docs.python.org/3.6/library/pprint.html#pprint.pformat) |
+
+### Extra Formatter Config Example
+
+```yaml
+formatters:
+  standard:
+    (): logging_utilities.formatters.extra_formatter.ExtraFormatter
+    format: "%(levelname)s - %(name)s - %(message)s"
+    extra_fmt: " - extra:\n%s"
+    extra_pretty_print: True
+```
+
+**NOTE**: `ExtraFormatter` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
 
 ## Flask Request Context
 
@@ -594,6 +641,151 @@ output:
 
 ```shell
 {"function": "my_page", "level": "INFO", "logger": "your_logger", "message": "My page requested", "module": "<stdin>", "process": 20421, "request": {"method": "GET", "path": "/my_page", "headers": {"Cookie": ""}}, "response": {"success": true}, "thread": 140433370822464, "time": "2020-10-12T16:44:45.374508+02:00"}
+```
+
+### Case 6. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)
+
+config.yaml
+
+```yaml
+version: 1
+
+root:
+  handlers:
+    - console
+  level: DEBUG
+  propagate: True
+
+filters:
+  isotime:
+    (): logging_utilities.filters.TimeAttribute
+  django:
+    (): logging_utilities.filters.django_request.JsonDjangoRequest
+    include_keys:
+      - request.path
+      - request.method
+      - request.headers
+    exclude_keys:
+      - request.headers.Authorization
+      - request.headers.Proxy-Authorization
+
+formatters:
+  standard_extra:
+    (): logging_utilities.formatters.extra_formatter.ExtraFormatter
+    # NOTE also in the constructor the parameter is `fmt` we need to use `format` here
+    format: "%(isotime)s - %(levelname)s - %(name)s - %(message)s"
+    extra_fmt: " - extra:\n%s"
+    extra_pretty_print: True
+    pretty_print_kwargs:
+      indent: 2
+      width: 60
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: standard_extra
+    stream: ext://sys.stdout
+    filters:
+      - isotime
+      - django
+```
+
+**NOTE:** This require to have `django` package installed otherwise it raises `ImportError`
+
+Then in your python code use it as follow:
+
+```python
+#!.venv/bin/python3
+import logging
+import logging.config
+
+import yaml
+
+from django.http import JsonResponse
+from django.conf import settings
+from django.test import RequestFactory
+
+
+config = {}
+with open('example-config.yaml', 'r') as fd:
+    config = yaml.safe_load(fd.read())
+
+logging.config.dictConfig(config)
+
+logger = logging.getLogger('your_logger')
+
+def my_page(request):
+    answer = {'success': True}
+    logger.info('My page requested', extra={'request': request, 'response': answer})
+    return JsonResponse(answer)
+
+settings.configure()
+factory = RequestFactory()
+
+my_page(factory.get('/my_page?test=true'))
+```
+
+output:
+
+```shell
+2020-11-19T13:32:58.942568+01:00 - INFO - your_logger - My page requested - extra:
+{ 'request': { 'headers': {'Cookie': ''},
+               'method': 'GET',
+               'path': '/my_page'},
+  'response': {'success': True}}
+```
+
+### Case 7. Add Specific Log Extra to the Standard Formatter
+
+config.yaml
+
+```yaml
+version: 1
+
+root:
+  handlers:
+    - console
+  level: DEBUG
+  propagate: True
+
+formatters:
+  standard_extra:
+    (): logging_utilities.formatters.extra_formatter.ExtraFormatter
+    # NOTE also in the constructor the parameter is `fmt` we need to use `format` here
+    format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    extra_fmt: " - extra1=%(extra1)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: standard_extra
+    stream: ext://sys.stdout
+```
+
+Then in your python code use it as follow:
+
+```python
+#!.venv/bin/python3
+import logging
+import logging.config
+
+import yaml
+
+config = {}
+with open('example-config.yaml', 'r') as fd:
+    config = yaml.safe_load(fd.read())
+
+logging.config.dictConfig(config)
+
+logger = logging.getLogger('your_logger')
+
+logger.debug('My log with extras', extra={'extra1': 23, 'extra2': "don't add this"})
+```
+
+output:
+
+```shell
+2020-11-19 13:42:29,424 - DEBUG - your_logger - My log with extras - extra1=23
 ```
 
 ## Credits
