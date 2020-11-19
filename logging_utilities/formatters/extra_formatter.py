@@ -37,7 +37,8 @@ class ExtraFormatter(logging.Formatter):
         validate=True,
         extra_fmt=None,
         extra_default='',
-        extra_pretty_print=False
+        extra_pretty_print=False,
+        pretty_print_kwargs=None
     ):
         '''
         Initialize the formatter with specified format strings.
@@ -56,22 +57,26 @@ class ExtraFormatter(logging.Formatter):
                 Set to true to use pprint.pformat on the extra dictionary
         '''
         super().__init__(fmt=fmt, datefmt=datefmt, style=style)
+        self._fmt_keys = re.findall(KEYS_PATTERN, fmt)
         self.extra_fmt = extra_fmt
         self._extras_keys = re.findall(KEYS_PATTERN, self.extra_fmt if self.extra_fmt else '')
         self._default = extra_default
         self._extra_pretty_print = extra_pretty_print
+        self._pretty_print_kwargs = pretty_print_kwargs if pretty_print_kwargs is not None else {}
 
     def formatMessage(self, record):
         message = self._style.format(record)
         if self.extra_fmt:
-            extra_keys = set(record.__dict__.keys()) - RECORD_DFT_ATTR
+            extra_keys = set(record.__dict__.keys()) - RECORD_DFT_ATTR - set(self._fmt_keys)
             extras = {key: getattr(record, key) for key in extra_keys}
             if extras:
                 missing_keys = set(self._extras_keys) - set(extras.keys())
                 extras.update({key: self._default for key in missing_keys})
                 if self._extra_pretty_print:
                     try:
-                        message = '%s%s' % (message, self.extra_fmt % pformat(extras))
+                        message = '%s%s' % (
+                            message, self.extra_fmt % pformat(extras, **self._pretty_print_kwargs)
+                        )
                     except TypeError as err:
                         if err.args[0] == 'format requires a mapping':
                             raise ValueError(
