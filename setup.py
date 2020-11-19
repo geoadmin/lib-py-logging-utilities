@@ -23,19 +23,24 @@ def get_version(version_line):
 setup(
     name='logging-utilities',
     version=get_version(VERSION_LINE),
-    description=('Python logging utilities'),
+    description=('A collection of useful logging formatters and filters. '
+                 'JSON Formatter, Extra Formatter, ISO Time Filter, Flask Filter, Django Filter, ...'),
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     platforms=["all"],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Utilities',
-        'Topic :: System :: Logging'
+        'Topic :: System :: Logging',
+        'Topic :: Software Development :: Libraries',
+        'Topic :: Software Development :: Libraries :: Python Modules',
+        'Framework :: Django',
+        'Framework :: Flask'
     ],
     python_requires='>=3.0',
     author='ltshb',
