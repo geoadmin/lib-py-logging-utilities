@@ -139,3 +139,7 @@ nose2-junit.xml
 
 # git
 *.orig
+
+# Example files for testing README.md examples
+example-config.yaml
+example.py

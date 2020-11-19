@@ -113,7 +113,8 @@ class BasicJsonFormatterTest(unittest.TestCase):
                     "system",
                     dictionary([(
                         "context",
-                        dictionary([("module", "test_formatter"), ("file", "test_formatter.py")])
+                        dictionary([("module", "test_json_formatter"),
+                                    ("file", "test_json_formatter.py")])
                     )])
                 ),
             ])
@@ -127,7 +128,8 @@ class BasicJsonFormatterTest(unittest.TestCase):
                     "system",
                     dictionary([(
                         "context",
-                        dictionary([("module", "test_formatter"), ("file", "test_formatter.py")])
+                        dictionary([("module", "test_json_formatter"),
+                                    ("file", "test_json_formatter.py")])
                     )])
                 ),
             ])
@@ -141,7 +143,8 @@ class BasicJsonFormatterTest(unittest.TestCase):
                     "system",
                     dictionary([(
                         "context",
-                        dictionary([("module", "test_formatter"), ("file", "test_formatter.py")])
+                        dictionary([("module", "test_json_formatter"),
+                                    ("file", "test_json_formatter.py")])
                     )])
                 ),
             ])
@@ -173,9 +176,9 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ("name", "test_formatter"),
                 ("message", "Composed message with list"),
                 ('list', [{
-                    "file": "test_formatter.py"
+                    "file": "test_json_formatter.py"
                 }, {
-                    "module": "test_formatter"
+                    "module": "test_json_formatter"
                 }]),
             ])
         )
