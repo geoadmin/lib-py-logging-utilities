@@ -4,4 +4,4 @@ pylint
 yapf
 Django
 rope
-PyYAML
+#PyYAML
