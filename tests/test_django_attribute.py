@@ -155,3 +155,21 @@ class RecordDjangoAttributesTest(unittest.TestCase):
                         )]),
             msg="Second message differ"
         )
+
+    def test_django_request_jsonify_other(self):
+        requests = ({'a': 1}, OrderedDict([('a', 1)]), ['a'], 45, 45.5, 'a')
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            test_logger = logging.getLogger('test_formatter')
+            self._configure_django_filter(
+                test_logger,
+                include_keys=[
+                    'request.META.REQUEST_METHOD', 'request.META.SERVER_NAME', 'request.environ'
+                ],
+                exclude_keys=['request.META.SERVER_NAME', 'request.environ.wsgi']
+            )
+            for request in requests:
+                test_logger.info('Simple message', extra={'request': request})
+
+        for i, request in enumerate(requests):
+            message = json.loads(ctx.output[i], object_pairs_hook=dictionary)
+            self.assertEqual(request, message['request'])
