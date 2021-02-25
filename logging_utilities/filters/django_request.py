@@ -62,11 +62,12 @@ class JsonDjangoRequest(logging.Filter):
                 # HttpRequest has a special headers property that is cached and is not always in
                 # record.request.__dict__
                 request['headers'] = self._jsonify_dict('request.headers', record.request.headers)
-        else:
+            setattr(record, 'request', request)
+        elif not isinstance(record.request, (str, int, float, list, dict)):
             # Django sets also in some log message extra={'request': socket.socket()} in this case
             # we simply stringify it
             request = str(record.request)
-        setattr(record, 'request', request)
+            setattr(record, 'request', request)
 
     def _jsonify_dict(self, prefix, dct):
         json_obj = dictionary()
