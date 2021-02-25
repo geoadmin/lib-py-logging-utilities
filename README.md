@@ -63,7 +63,7 @@ Only owners are allowed to publish a new version to PyPI. To publish a new versi
 1. From `master` branch enter
 
     ```shell
-    summon -p gopass -u make publish
+    summon -p gopass --up make publish
     ```
 
 **NOTE**: this requires to have `summon`, `gopass` and the correct `secrets.yml` file in a parent folder.
