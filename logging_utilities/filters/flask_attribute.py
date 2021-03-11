@@ -1,5 +1,7 @@
 import logging
 
+from werkzeug.exceptions import HTTPException
+
 from flask import has_request_context
 from flask import request
 
@@ -27,7 +29,16 @@ class FlaskRequestAttribute(logging.Filter):
             rec_attribute = 'flask_request_' + attribute
             value = ''
             if has_request_context():
-                value = getattr(request, attribute, '')
+                try:
+                    value = getattr(request, attribute, '')
+                except HTTPException:
+                    # accessing the request.json might raise an HTTPException if the request
+                    # is malformed for json data. In this case we don't want the filter to crash
+                    # but simply set an empty value
+                    if attribute == 'json':
+                        value = str(request.data)
+                    else:
+                        value = ''
             if value is None or isinstance(value, (str, int, float, dict)):
                 setattr(record, rec_attribute, value)
             elif attribute == 'headers':
