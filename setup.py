@@ -23,8 +23,10 @@ def get_version(version_line):
 setup(
     name='logging-utilities',
     version=get_version(VERSION_LINE),
-    description=('A collection of useful logging formatters and filters. '
-                 'JSON Formatter, Extra Formatter, ISO Time Filter, Flask Filter, Django Filter, ...'),
+    description=(
+        'A collection of useful logging formatters and filters. '
+        'JSON Formatter, Extra Formatter, ISO Time Filter, Flask Filter, Django Filter, ...'
+    ),
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     platforms=["all"],

@@ -2,8 +2,12 @@ import logging
 import unittest
 from logging import Formatter
 
+from flask import Flask
+
 from logging_utilities.filters import ConstAttribute
 from logging_utilities.filters.flask_attribute import FlaskRequestAttribute
+
+app = Flask(__name__)
 
 
 class RecordAttributesTest(unittest.TestCase):
@@ -24,7 +28,9 @@ class RecordAttributesTest(unittest.TestCase):
         for handler in logger.handlers:
             const_attribute = FlaskRequestAttribute(attributes=['url', 'method', 'headers', 'json'])
             handler.addFilter(const_attribute)
-            handler.setFormatter(Formatter("%(levelname)s:%(message)s:%(flask_request_url)s"))
+            handler.setFormatter(
+                Formatter("%(levelname)s:%(message)s:%(flask_request_url)s:%(flask_request_json)s")
+            )
 
     def test_const_attribute(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
@@ -52,8 +58,51 @@ class RecordAttributesTest(unittest.TestCase):
         self.assertEqual(
             ctx.output,
             [
-                'INFO:Simple message:',
-                'INFO:Composed message: this is a composed message:',
-                'INFO:Composed message with extra:'
+                'INFO:Simple message::',
+                'INFO:Composed message: this is a composed message::',
+                'INFO:Composed message with extra::'
+            ]
+        )
+
+    def test_flask_attribute_json(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_flask_attribute(logger)
+
+            with app.test_request_context('/make_report/2017', data={'format': 'short'}):
+                logger.info('Simple message')
+                logger.info('Composed message: %s', 'this is a composed message')
+                logger.info('Composed message %s', 'with extra', extra={'extra1': 23})
+
+            with app.test_request_context('/make_report/2017', data=''):
+                logger.info('Simple message')
+
+            with app.test_request_context(
+                '/make_report/2017', data='non json data', content_type='application/json'
+            ):
+                logger.info('Simple message')
+
+            with app.test_request_context(
+                '/make_report/2017', data='{}', content_type='application/json'
+            ):
+                logger.info('Simple message')
+
+            with app.test_request_context(
+                '/make_report/2017',
+                data='{"jsonData": "this is a json data"}',
+                content_type='application/json'
+            ):
+                logger.info('Simple message')
+        self.assertEqual(
+            ctx.output,
+            [
+                # pylint: disable=line-too-long
+                'INFO:Simple message:http://localhost/make_report/2017:None',
+                'INFO:Composed message: this is a composed message:http://localhost/make_report/2017:None',
+                'INFO:Composed message with extra:http://localhost/make_report/2017:None',
+                'INFO:Simple message:http://localhost/make_report/2017:None',
+                "INFO:Simple message:http://localhost/make_report/2017:b'non json data'",
+                'INFO:Simple message:http://localhost/make_report/2017:{}',
+                "INFO:Simple message:http://localhost/make_report/2017:{'jsonData': 'this is a json data'}",
             ]
         )
