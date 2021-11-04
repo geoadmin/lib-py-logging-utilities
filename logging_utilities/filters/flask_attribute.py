@@ -41,6 +41,8 @@ class FlaskRequestAttribute(logging.Filter):
                         value = ''
             if value is None or isinstance(value, (str, int, float, dict)):
                 setattr(record, rec_attribute, value)
+            elif isinstance(value, bytes):
+                setattr(record, rec_attribute, value.decode('utf-8'))
             elif attribute == 'headers':
                 setattr(record, rec_attribute, dict(value.items()))
             else:
