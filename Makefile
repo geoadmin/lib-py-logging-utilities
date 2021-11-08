@@ -100,7 +100,7 @@ package: $(PREP_PACKAGING_TIMESTAMP)
 
 
 .PHONY: publish
-publish: publish-check clean test package
+publish: clean test package publish-check
 	@echo "Tag and upload package version=$(PACKAGE_VERSION)"
 	@# Check if we use interactive credentials or not
 	@if [ -n "$(PYPI_PASSWORD)" ]; then \
