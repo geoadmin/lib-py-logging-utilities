@@ -1,6 +1,6 @@
 # Python logging utilities
 
-[![Build Status](https://travis-ci.org/geoadmin/lib-py-logging-utilities.svg?branch=master)](https://travis-ci.org/geoadmin/lib-py-logging-utilities)
+![Build Status](https://codebuild.eu-central-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiTGJzNVpFWUdESWd3c2VWUyt0M1NoYmY4MzVBTEtLZkFKa0FxRFhFa2lwS2JobEhkamR4T2E0ZlZ0OG1hekZrQjlhOWd4QmtydXZ4eHBmblJ3VDBKd3F3PSIsIml2UGFyYW1ldGVyU3BlYyI6ImZEQzE0Rzd6andXYUEyQy8iLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master)
 [![PyPI version](https://badge.fury.io/py/logging-utilities.svg)](https://badge.fury.io/py/logging-utilities)
 
 This package implements some useful logging utilities. Here below are the main features of the package:
@@ -41,7 +41,7 @@ All features can be fully configured from the configuration file.
 
 ## Installation
 
-__logging_utilities__ is available on PyPI.
+**logging_utilities** is available on PyPI.
 
 Use pip to install:
 
