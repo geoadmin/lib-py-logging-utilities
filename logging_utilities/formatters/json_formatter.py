@@ -30,7 +30,7 @@ class JsonFormatter(logging.Formatter):
 
     def __init__(
         self,
-        fmt=None,
+        fmt=DEFAULT_FORMAT,
         datefmt=None,
         style='%',
         add_always_extra=False,
