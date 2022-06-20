@@ -5,6 +5,8 @@ import sys
 import warnings
 from collections import OrderedDict
 
+from logging import _STYLES
+
 from logging_utilities.formatters import RECORD_DFT_ATTR
 
 if sys.version_info < (3, 0):
@@ -68,8 +70,10 @@ class JsonFormatter(logging.Formatter):
             TypeError:  When the fmt parameter is in a wrong type
             json.decoder.JSONDecodeError: When fmt is a string that don't describe a json object
         """
-        super().__init__(fmt='', datefmt=datefmt, style=style)
+        super().__init__(datefmt=datefmt, style=style)
 
+        self._style_constructor = _STYLES[style][0]
+        self._use_time = str(fmt).find('asctime')
         self.json_fmt = self._parse_fmt(fmt)
         self.add_always_extra = add_always_extra
         self.filter_attributes = filter_attributes
@@ -142,8 +146,8 @@ class JsonFormatter(logging.Formatter):
             elif isinstance(value, str):
                 # When the value is a string it can contain formatting strings (e.g. "%(asctime)s")
                 # therefore try to format it.
-                self._style._fmt = value  # pylint: disable=protected-access
-                intermediate_msg = super().formatMessage(record)
+                style = self._style_constructor(value)
+                intermediate_msg = style.format(record)
                 if not self.remove_empty or intermediate_msg != '':
                     message.append(intermediate_msg)
 
@@ -171,10 +175,16 @@ class JsonFormatter(logging.Formatter):
             elif isinstance(value, str):
                 # When the value is a string it can contain formatting strings (e.g. "%(asctime)s")
                 # therefore try to format it.
-                self._style._fmt = value  # pylint: disable=protected-access
-                message[key] = super().formatMessage(record)
+                style = self._style_constructor(value)
+                message[key] = style.format(record)
                 if self.remove_empty and message[key] == '':
                     del message[key]
+
+    def usesTime(self):
+        """
+        Check if the format uses the creation time of the record.
+        """
+        return self._use_time
 
     def formatMessage(self, record):
         message = dictionary()
