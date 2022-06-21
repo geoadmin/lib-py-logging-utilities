@@ -73,7 +73,7 @@ class JsonFormatter(logging.Formatter):
         super().__init__(datefmt=datefmt, style=style)
 
         self._style_constructor = _STYLES[style][0]
-        self._use_time = str(fmt).find('asctime')
+        self._use_time = str(fmt).find('asctime') >= 0
         self.json_fmt = self._parse_fmt(fmt)
         self.add_always_extra = add_always_extra
         self.filter_attributes = filter_attributes
