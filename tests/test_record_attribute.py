@@ -37,7 +37,8 @@ class RecordAttributesTest(unittest.TestCase):
             handler.addFilter(const_attribute)
             handler.setFormatter(
                 Formatter(
-                    "%(levelname)s:%(message)s:%(flask_request_url)s:%(flask_request_json)s:%(flask_request_query_string)s"
+                    "%(levelname)s:%(message)s:%(flask_request_url)s:%(flask_request_json)s:"
+                    "%(flask_request_query_string)s"
                 )
             )
 

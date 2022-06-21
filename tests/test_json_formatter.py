@@ -1,8 +1,12 @@
+from datetime import datetime
+import re
 import json
 import logging
 import sys
 import unittest
 from collections import OrderedDict
+
+from nose2.tools import params
 
 from logging_utilities.filters import ConstAttribute
 from logging_utilities.formatters.json_formatter import JsonFormatter
@@ -18,11 +22,11 @@ class BasicJsonFormatterTest(unittest.TestCase):
     maxDiff = None
 
     @classmethod
-    def _configure_logger(cls, logger, fmt=None, add_always_extra=False):
+    def _configure_logger(cls, logger, fmt=None, add_always_extra=False, style='%'):
         logger.setLevel(logging.DEBUG)
 
         for handler in logger.handlers:
-            formatter = JsonFormatter(fmt, add_always_extra=add_always_extra)
+            formatter = JsonFormatter(fmt, add_always_extra=add_always_extra, style=style)
             handler.setFormatter(formatter)
 
     @classmethod
@@ -78,6 +82,89 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ("message", "Composed message with extra"),
             ])
         )
+
+    @params(
+        (
+            '%',
+            dictionary([
+                ('time', '%(asctime)s'),
+                ('level', dictionary([('name', '%(levelname)s'), ('level', '%(levelno)d')])),
+                ('pid_thid', '%(process)x/%(thread)x'),
+                ('message', '%(message)s'),
+            ])
+        ),
+        (
+            '%',
+            dictionary([
+                ('time', 'asctime'),
+                ('level', dictionary([('name', 'levelname'), ('level', '%(levelno)d')])),
+                ('pid_thid', '%(process)x/%(thread)x'),
+                ('message', 'message'),
+            ])
+        ),
+        (
+            '{',
+            dictionary([
+                ('time', '{asctime}'),
+                ('level', dictionary([('name', '{levelname}'), ('level', '{levelno:d}')])),
+                ('pid_thid', '{process:x}/{thread:x}'),
+                ('message', '{message}'),
+            ])
+        ),
+        (
+            '$',
+            dictionary([
+                ('time', '${asctime}'),
+                ('level', dictionary([('name', '${levelname}'), ('level', '${levelno}')])),
+                ('pid_thid', '${process}/${thread}'),
+                ('message', '${message}'),
+            ])
+        ),
+    )
+    def test_log_format_styles(self, style, fmt):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(logger, fmt=fmt, style=style)
+            logger.info('Simple message')
+            logger.info('Composed message: %s', 'this is a composed message')
+            logger.info('Composed message %s', 'with extra', extra={'extra1': 23})
+        messages = [
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            json.loads(ctx.output[1], object_pairs_hook=dictionary),
+            json.loads(ctx.output[2], object_pairs_hook=dictionary)
+        ]
+        for message in messages:
+            self.assertListEqual(list(message.keys()), ['time', 'level', 'pid_thid', 'message'])
+            try:
+                time_attr = datetime.strptime(message['time'], "%Y-%m-%d %X,%f")
+            except ValueError as error:
+                self.fail('Invalid time format in %s' % message['time'])
+            self.assertAlmostEqual(time_attr.timestamp(), datetime.now().timestamp(), delta=10)
+            self.assertListEqual(list(message['level'].keys()), ['name', 'level'])
+            self.assertEqual(message['level']['level'], str(logging.INFO))
+            self.assertIsNotNone(
+                re.match(r'^[a-fA-F0-9]+/[a-fA-F0-9]+$', message['pid_thid']),
+                msg='Invalid pid_thid value: %s' % message['pid_thid']
+            )
+        self.assertEqual(messages[0]['message'], "Simple message")
+        self.assertEqual(messages[1]['message'], "Composed message: this is a composed message")
+        self.assertEqual(messages[2]['message'], "Composed message with extra")
+
+    def test_log_levelno(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('levelno_int', 'levelno'),
+                    ('levelno_str', '%(levelno)d'),
+                    ('message', '%(message)s'),
+                ])
+            )
+            logger.info('Simple message')
+        message = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        self.assertEqual(message['levelno_int'], logging.INFO)
+        self.assertEqual(message['levelno_str'], str(logging.INFO))
 
     def test_embedded_object(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:

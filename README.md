@@ -19,23 +19,39 @@ All features can be fully configured from the configuration file.
 
 ## Table of content
 
+- [Table of content](#table-of-content)
 - [Installation](#installation)
 - [Release and Publish](#release-and-publish)
 - [Contribution](#contribution)
+  - [Developer](#developer)
 - [JSON Formatter](#json-formatter)
+  - [Configure JSON Format](#configure-json-format)
+  - [JSON Formatter Options](#json-formatter-options)
 - [Extra Formatter](#extra-formatter)
+  - [Extra Formatter Constructor](#extra-formatter-constructor)
+  - [Extra Formatter Config Example](#extra-formatter-config-example)
 - [Flask Request Context](#flask-request-context)
+  - [Flask Request Context Filter Constructor](#flask-request-context-filter-constructor)
+  - [Flask Request Context Config Example](#flask-request-context-config-example)
 - [Jsonify Django Request](#jsonify-django-request)
+  - [Usage](#usage)
+  - [Django Request Filter Constructor](#django-request-filter-constructor)
+  - [Django Request Config Example](#django-request-config-example)
 - [ISO Time with Timezone](#iso-time-with-timezone)
+  - [ISO Time Filter Constructor](#iso-time-filter-constructor)
+  - [ISO Time Config Example](#iso-time-config-example)
 - [Constant Record Attribute](#constant-record-attribute)
+  - [Constant Record Attribute Config Example](#constant-record-attribute-config-example)
 - [Logger Level Filter](#logger-level-filter)
+  - [Logger Level Filter Constructor](#logger-level-filter-constructor)
+  - [Logger Level Filter Config Example](#logger-level-filter-config-example)
 - [Basic Usage](#basic-usage)
   - [Case 1. Simple JSON Output](#case-1-simple-json-output)
   - [Case 2. JSON Output Configured within Python Code](#case-2-json-output-configured-within-python-code)
   - [Case 3. JSON Output Configured with a YAML File](#case-3-json-output-configured-with-a-yaml-file)
   - [Case 4. Add Flask Request Context Attributes to JSON Output](#case-4-add-flask-request-context-attributes-to-json-output)
   - [Case 5. Add Django Request to JSON Output](#case-5-add-django-request-to-json-output)
-  - [Case 6. Add all Log Extra as Dictionary to the Standard Formatter](#case-6-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
+  - [Case 6. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-6-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
   - [Case 7. Add Specific Log Extra to the Standard Formatter](#case-7-add-specific-log-extra-to-the-standard-formatter)
 - [Credits](#credits)
 
@@ -122,7 +138,7 @@ You can change some behavior using the `JsonFormatter` constructor:
 
 | Parameter | Type | Default | Description                                       |
 |-----------|------|---------|---------------------------------------------------|
-| `fmt`       | dict | `None`  | Define the output format, see [Configure JSON Format](#configure-json-format) |
+| `fmt`       | dict | `{'levelname': 'levelname', 'name': 'name', 'message': 'message'}`  | Define the output format, see [Configure JSON Format](#configure-json-format) |
 | `datefmt`   | string | `None`  | Date format for `asctime`, see [time.strftime()](https://docs.python.org/3.7/library/time.html#time.strftime) |
 | `style`     | string | `%`     | String formatting style, see [logging.Formatter](https://docs.python.org/3.7/library/logging.html#logging.Formatter) |
 | `add_always_extra` | bool |`False` | When `True`, logging extra (`logging.log('message', extra={'my-extra': 'some value'})`) are always added to the output. Otherwise they are only added if present in `fmt`. |
@@ -142,6 +158,28 @@ formatters:
       logger: name
       module: module
       message: message
+```
+
+**:warning: When using the INI file format like documented [here](https://docs.python.org/3.9/library/logging.config.html#logging-config-fileformat), you cannot use the JSON formatter options describe above and have to use the formatter using the `class`, `format`, `datefmt` and `style` attributes like below**
+
+```ini
+[formatters]
+keys = my_json
+
+[formatter_my_json]
+class = logging_utilities.formatters.json_formatter.JsonFormatter
+format: {
+        "time": "asctime",
+        "level": "levelname",
+        "logger": "name",
+        "module": "module",
+        "function": "funcName",
+        "pid_tid": "%(process)x/%(thread)x",
+        "message": "message",
+        "exc_info": "exc_info"
+    } # OPTIONAL
+datefmt = %Y-%m-%d %H:%M # OPTIONAL
+style = % # OPTIONAL
 ```
 
 ## Extra Formatter
