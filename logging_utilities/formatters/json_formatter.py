@@ -4,13 +4,12 @@ import logging.config
 import sys
 import warnings
 from collections import OrderedDict
-
 from logging import _STYLES
 
 from logging_utilities.formatters import RECORD_DFT_ATTR
 
 if sys.version_info < (3, 0):
-    raise ImportError('Only python 3 is supported')
+    raise ImportError('Only python 3 is supported')  # pragma: no cover
 
 # From python3.7, dict is ordered. Ordered dict are preferred in order to keep the json output
 # in the same order as its definition
@@ -30,7 +29,7 @@ class JsonFormatter(logging.Formatter):
 
     def __init__(
         self,
-        fmt=DEFAULT_FORMAT,
+        fmt=None,
         datefmt=None,
         style='%',
         add_always_extra=False,
@@ -72,6 +71,8 @@ class JsonFormatter(logging.Formatter):
         """
         super().__init__(datefmt=datefmt, style=style)
 
+        if fmt is None:
+            fmt = DEFAULT_FORMAT
         self._style_constructor = _STYLES[style][0]
         self._use_time = str(fmt).find('asctime') >= 0
         self.json_fmt = self._parse_fmt(fmt)
@@ -101,7 +102,7 @@ class JsonFormatter(logging.Formatter):
         raise TypeError(
             '`{}` type is not supported, `fmt` must be json `str`, `OrderedDict` or `dict` type.'.
             format(type(fmt))
-        )
+        )  # pragma: no cover
 
     @classmethod
     def _add_extra_to_message(cls, extra, message):
@@ -144,11 +145,10 @@ class JsonFormatter(logging.Formatter):
                 if not self.remove_empty or intermediate_msg is not None:
                     message.append(intermediate_msg)
             elif isinstance(value, str):
-                # When the value is a string it can contain formatting strings (e.g. "%(asctime)s")
-                # therefore try to format it.
-                style = self._style_constructor(value)
-                intermediate_msg = style.format(record)
-                if not self.remove_empty or intermediate_msg != '':
+                intermediate_msg = self._get_string_key_value(record, value)
+                if self.remove_empty and not intermediate_msg:
+                    pass
+                else:
                     message.append(intermediate_msg)
 
     def _add_object_to_message(self, record, obj, message):
@@ -173,12 +173,39 @@ class JsonFormatter(logging.Formatter):
                 if self.remove_empty and message[key] == '':
                     del message[key]
             elif isinstance(value, str):
-                # When the value is a string it can contain formatting strings (e.g. "%(asctime)s")
-                # therefore try to format it.
-                style = self._style_constructor(value)
-                message[key] = style.format(record)
-                if self.remove_empty and message[key] == '':
+                message[key] = self._get_string_key_value(record, value)
+                if self.remove_empty and not message[key]:
                     del message[key]
+
+    @classmethod
+    def _get_dotted_key_value(cls, record, str_value):
+        # When the value is a string we first split the string by '.' to support dictionary
+        # sub-keys
+        def get_dotted_key(dct, dotted_key):
+            if not isinstance(dct, (dict)):
+                raise ValueError(
+                    f'Cannot get dotted key "{dotted_key}" from "{dct}": '
+                    'is not a record or dictionary'
+                )  # pragma: no cover
+            key = dotted_key
+            next_dotted_key = None
+            if '.' in dotted_key:
+                key, next_dotted_key = dotted_key.split('.', maxsplit=1)
+            if next_dotted_key is not None:
+                return get_dotted_key(dct.get(key, {}), next_dotted_key)
+
+            return dct.get(key, '')
+
+        return get_dotted_key(record.__dict__, str_value)
+
+    def _get_string_key_value(self, record, value):
+        if '.' in value:
+            return self._get_dotted_key_value(record, value)
+
+        # The final string value can contain formatting strings (e.g. "%(asctime)s")
+        # therefore try to format it.
+        style = self._style_constructor(value)
+        return style.format(record)
 
     def usesTime(self):
         """
@@ -224,7 +251,7 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(message, default=default, **self.kwargs)
 
 
-def basic_config(**kwargs):
+def basic_config(**kwargs):  # pragma: no cover
     """
     Do basic configuration for the logging system.
 

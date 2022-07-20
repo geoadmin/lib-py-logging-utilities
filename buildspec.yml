@@ -17,20 +17,30 @@ phases:
       - echo "Installing different python versions"
       - apt-get update -qq
       - apt-get install -yqq python3-pip python3.8 python3.9
+  pre_build:
+    commands:
+      - make setup
+      - echo "=== Check Formatting ============================================"
+      - make ci-check-format
+      - echo "=== Linting ====================================================="
+      - make lint
   build:
     commands:
+      - echo "================================================================="
       - echo "Setting up dev mode with python version $(python --version)..."
       - pip install --upgrade pip
       - pip install -r dev_requirements.txt
       - pip install -e .
       - echo "Running nose tests..."
       - nose2 -v -s tests/
+      - echo "================================================================="
       - echo "Setting up dev mode python python version $(python3.8 --version)..."
       - python3.8 -m pip install --upgrade pip
       - python3.8 -m pip install -r dev_requirements.txt
       - python3.8 -m pip install -e .
       - echo "Running nose tests..."
       - python3.8 -m nose2 -v -s tests/
+      - echo "================================================================="
       - echo "Setting up dev mode python python version $(python3.9 --version)..."
       - python3.9 -m pip install --upgrade pip
       - python3.9 -m pip install -r dev_requirements.txt

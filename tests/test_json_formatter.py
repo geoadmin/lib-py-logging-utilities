@@ -1,10 +1,10 @@
-from datetime import datetime
-import re
 import json
 import logging
+import re
 import sys
 import unittest
 from collections import OrderedDict
+from datetime import datetime
 
 from nose2.tools import params
 
@@ -22,11 +22,15 @@ class BasicJsonFormatterTest(unittest.TestCase):
     maxDiff = None
 
     @classmethod
-    def _configure_logger(cls, logger, fmt=None, add_always_extra=False, style='%'):
+    def _configure_logger(
+        cls, logger, fmt=None, add_always_extra=False, remove_empty=False, style='%'
+    ):
         logger.setLevel(logging.DEBUG)
 
         for handler in logger.handlers:
-            formatter = JsonFormatter(fmt, add_always_extra=add_always_extra, style=style)
+            formatter = JsonFormatter(
+                fmt, add_always_extra=add_always_extra, remove_empty=remove_empty, style=style
+            )
             handler.setFormatter(formatter)
 
     @classmethod
@@ -237,7 +241,7 @@ class BasicJsonFormatterTest(unittest.TestCase):
             ])
         )
 
-    def test_embedded_list(self):
+    def test_list_embedded_object(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
             self._configure_logger(
@@ -267,6 +271,33 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 }, {
                     "module": "test_json_formatter"
                 }]),
+            ])
+        )
+
+    def test_list_embedded_list(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ("levelname", "levelname"),
+                    ("name", "name"),
+                    ("message", "message"),
+                    ("list", [["filename", "module"], ["levelname", "levelno"]]),
+                ])
+            )
+            logger.info('Composed message %s', 'with embedded list')
+        message = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        self.assertDictEqual(
+            message,
+            dictionary([
+                ("levelname", "INFO"),
+                ("name", "test_formatter"),
+                ("message", "Composed message with embedded list"),
+                (
+                    'list', [["test_json_formatter.py", "test_json_formatter"],
+                             ["INFO", logging.INFO]]
+                ),
             ])
         )
 
@@ -301,24 +332,39 @@ class BasicJsonFormatterTest(unittest.TestCase):
     def test_exception(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
-            self._configure_logger(logger)
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('levelname', 'levelname'),
+                    ('name', 'name'),
+                    ('message', 'message'),
+                    (
+                        'exception_dict',
+                        dictionary([("exc_info", "exc_info"), ("exc_text", "exc_text")])
+                    ),
+                    ('exception_list', ["exc_info", "exc_info"]),
+                    ("exc_info", "exc_info"),
+                    ("exc_text", "exc_text"),
+                ])
+            )
             try:
                 raise ValueError("My value error")
             except ValueError as err:
                 logger.exception('Exception message: %s', err)
         message = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        exc_text = 'Traceback (most recent call last):\n' + \
+                   '    raise ValueError("My value error")\n' + \
+                   'ValueError: My value error'
         expected_msg = dictionary([
             ("levelname", "ERROR"),
             ("name", "test_formatter"),
             ("message", "Exception message: My value error"),
-            (
-                "exc_text",
-                'Traceback (most recent call last):\n'
-                '    raise ValueError("My value error")\n'
-                'ValueError: My value error'
-            ),
+            ("exception_dict", dictionary([("exc_info", True), ("exc_text", exc_text)])),
+            ("exception_list", [True, exc_text]),
+            ("exc_info", True),
+            ("exc_text", exc_text),
         ])
-        self.assertEqual(message.keys(), expected_msg.keys())
+        self.assertListEqual(list(message.keys()), list(expected_msg.keys()))
         self.assertEqual(message['levelname'], expected_msg['levelname'])
         self.assertEqual(message['name'], expected_msg['name'])
         self.assertEqual(message['message'], expected_msg['message'])
@@ -376,5 +422,149 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ('name', 'test_formatter'),
                 ("message", "Composed message with non serializable extra"),
                 ('test-object', 'Test Object'),
+            ])
+        )
+
+    def test_sub_key(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('level', 'levelname'),
+                    ('request', dictionary([('path', 'request.path')])),
+                    ('message', 'message'),
+                ])
+            )
+            logger.info(
+                'Composed message %s',
+                'with extra request',
+                extra={'request': {
+                    'path': '/my/path', 'method': 'GET', 'scheme': 'https'
+                }}
+            )
+            logger.info('Composed message %s', 'without extra request')
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("request", dictionary([("path", "/my/path")])),
+                ("message", "Composed message with extra request"),
+            ])
+        )
+        self.assertDictEqual(
+            json.loads(ctx.output[1], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("request", dictionary([("path", "")])),
+                ("message", "Composed message without extra request"),
+            ])
+        )
+
+    def test_sub_key_list(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('level', 'levelname'),
+                    ('request', ['request.path', 'request.method']),
+                    ('message', 'message'),
+                ])
+            )
+            logger.info(
+                'Composed message %s',
+                'with extra request',
+                extra={'request': {
+                    'path': '/my/path', 'method': 'GET', 'scheme': 'https'
+                }}
+            )
+            logger.info('Composed message %s', 'without extra request')
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("request", ["/my/path", "GET"]),
+                ("message", "Composed message with extra request"),
+            ])
+        )
+        self.assertDictEqual(
+            json.loads(ctx.output[1], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("request", ['', '']),
+                ("message", "Composed message without extra request"),
+            ])
+        )
+
+    def test_sub_key_remove_empty(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('level', 'levelname'),
+                    ('request', dictionary([('path', 'request.path')])),
+                    ('message', 'message'),
+                ]),
+                remove_empty=True
+            )
+            logger.info(
+                'Composed message %s',
+                'with extra request',
+                extra={'request': {
+                    'path': '/my/path', 'method': 'GET'
+                }}
+            )
+            logger.info('Composed message %s', 'without extra request')
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("request", dictionary([("path", "/my/path")])),
+                ("message", "Composed message with extra request"),
+            ])
+        )
+        self.assertDictEqual(
+            json.loads(ctx.output[1], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("message", "Composed message without extra request"),
+            ])
+        )
+
+    def test_sub_key_list_remove_empty(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('level', 'levelname'),
+                    ('request', ['request.path', 'request.method']),
+                    ('message', 'message'),
+                ]),
+                remove_empty=True
+            )
+            logger.info(
+                'Composed message %s',
+                'with extra request',
+                extra={'request': {
+                    'path': '/my/path', 'method': 'GET', 'scheme': 'https'
+                }}
+            )
+            logger.info('Composed message %s', 'without extra request')
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("request", ["/my/path", "GET"]),
+                ("message", "Composed message with extra request"),
+            ])
+        )
+        self.assertDictEqual(
+            json.loads(ctx.output[1], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("message", "Composed message without extra request"),
             ])
         )
