@@ -51,8 +51,9 @@ All features can be fully configured from the configuration file.
   - [Case 3. JSON Output Configured with a YAML File](#case-3-json-output-configured-with-a-yaml-file)
   - [Case 4. Add Flask Request Context Attributes to JSON Output](#case-4-add-flask-request-context-attributes-to-json-output)
   - [Case 5. Add Django Request to JSON Output](#case-5-add-django-request-to-json-output)
-  - [Case 6. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-6-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
-  - [Case 7. Add Specific Log Extra to the Standard Formatter](#case-7-add-specific-log-extra-to-the-standard-formatter)
+  - [Case 6. Add parts of Django Request to JSON Output](#case-6-add-parts-of-django-request-to-json-output)
+  - [Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-7-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
+  - [Case 8. Add Specific Log Extra to the Standard Formatter](#case-8-add-specific-log-extra-to-the-standard-formatter)
 - [Credits](#credits)
 
 ## Installation
@@ -126,6 +127,7 @@ The format can be configured either using the `format` config parameter or the `
 | Value        | Type   | Transformation        | Example        |
 ---------------|--------|-----------------------|----------------|
 | attribute    | string | The string is a _LogRecord_ attribute name,<br/>then the value of this attribute is used as output. | `"message"` |
+| dotted key attribute | string | The string is a dotted key to access a sub attribute of _LogRecord_.<br/>For example if the _LogRecord_ contains a dictionary attribute added via an _extra_, you can use the dotted notation to access only a sub object/value of the dictionary. | `"request.path"` |
 | str format   | string | The string contains named string format,<br/>each named format are replaced by the corresponding <br/>_LogRecord_ attribute value. | `"%(asctime)s.%(msecs)s"` |
 | object | dict | The object is embedded in the output with its value<br/>following the same rules as defined in this table. | `{"lineno": "lineno", "file": "filename"}` |
 | array | list | The list is embedded as an _array_ in the output.<br>Each value is processed using the rules from this table | `["created", "asctime"]` |
@@ -448,7 +450,24 @@ test()
 output:
 
 ```shell
-{"Name": "root", "Levelno": 20, "Levelname": "INFO", "Pathname": "test.py", "Filename": "test.py", "Module": "test", "Lineno": 75, "FuncName": "test", "Created": 1588185267.3198836, "Asctime": "2020-04-30 02:34:27,319", "Msecs": 319.8835849761963, "RelativeCreated": 88.2880687713623, "Thread": 16468, "ThreadName": "MainThread", "Process": 16828, "Message": "test string format"}
+{
+  "Name": "root", 
+  "Levelno": 20, 
+  "Levelname": "INFO", 
+  "Pathname": "test.py", 
+  "Filename": "test.py", 
+  "Module": "test", 
+  "Lineno": 75, 
+  "FuncName": "test", 
+  "Created": 1588185267.3198836, 
+  "Asctime": "2020-04-30 02:34:27,319", 
+  "Msecs": 319.8835849761963, 
+  "RelativeCreated": 88.2880687713623, 
+  "Thread": 16468, 
+  "ThreadName": "MainThread", 
+  "Process": 16828, 
+  "Message": "test string format"
+}
 ```
 
 ### Case 3. JSON Output Configured with a YAML File
@@ -506,7 +525,16 @@ root.info('Test file config')
 output:
 
 ```shell
-{"function": "<module>", "level": "INFO", "logger": "root", "message": "Test file config", "module": "<stdin>", "process": 12264, "thread": 139815989413696, "time": "asctime"}
+{
+  "function": "<module>", 
+  "level": "INFO", 
+  "logger": "root", 
+  "message": "Test file config", 
+  "module": "<stdin>", 
+  "process": 12264, 
+  "thread": 139815989413696, 
+  "time": "asctime"
+}
 ```
 
 ### Case 4. Add Flask Request Context Attributes to JSON Output
@@ -572,6 +600,7 @@ import logging
 import logging.config
 
 import yaml
+from flask import Flask
 
 
 config = {}
@@ -580,14 +609,37 @@ with open('example-config.yaml', 'r') as fd:
 
 logging.config.dictConfig(config)
 
+app = Flask('test')
+
 root = logging.getLogger()
-root.info('Test file config')
+
+with app.test_request_context("path/test", method='GET', headers={"Accept": "*/*"}):
+  root.info('Test file config')
 ```
 
 output:
 
 ```shell
-{"function": "<module>", "level": "INFO", "logger": "root", "message": "Test file config", "module": "<stdin>", "process": 24190, "request": {"url": "", "method": "", "headers": "", "data": "", "remote": ""}, "thread": 140163374577472, "time": "isotime"}
+{
+  "time": "2022-07-20T10:09:10.765237+02:00", 
+  "level": "INFO",
+  "logger": "root", 
+  "module": "<stdin>", 
+  "function": "<module>", 
+  "process": 58043, 
+  "thread": 139717802334016, 
+  "request": {
+    "url": "http://localhost/path/test", 
+    "method": "GET", 
+    "headers": {
+      "Host": "localhost", 
+      "Accept": "*/*"
+    }, 
+    "data": null, 
+    "remote": null
+  }, 
+  "message": "Test file config"
+}
 ```
 
 ### Case 5. Add Django Request to JSON Output
@@ -678,10 +730,143 @@ my_page(factory.get('/my_page?test=true'))
 output:
 
 ```shell
-{"function": "my_page", "level": "INFO", "logger": "your_logger", "message": "My page requested", "module": "<stdin>", "process": 20421, "request": {"method": "GET", "path": "/my_page", "headers": {"Cookie": ""}}, "response": {"success": true}, "thread": 140433370822464, "time": "2020-10-12T16:44:45.374508+02:00"}
+{
+  "function": "my_page", 
+  "level": "INFO", 
+  "logger": "your_logger", 
+  "message": "My page requested", 
+  "module": "<stdin>", 
+  "process": 20421, 
+  "request": {
+    "method": "GET", 
+    "path": "/my_page", 
+    "headers": {
+      "Cookie": ""
+    }
+  }, 
+  "response": {
+    "success": true
+  }, 
+  "thread": 140433370822464, 
+  "time": "2020-10-12T16:44:45.374508+02:00"
+}
 ```
 
-### Case 6. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)
+### Case 6. Add parts of Django Request to JSON Output
+
+config.yaml
+
+```yaml
+version: 1
+
+root:
+  handlers:
+    - console
+  level: DEBUG
+  propagate: True
+
+filters:
+  isotime:
+    (): logging_utilities.filters.TimeAttribute
+  django:
+    (): logging_utilities.filters.django_request.JsonDjangoRequest
+    include_keys:
+      - request.path
+      - request.method
+      - request.headers
+
+formatters:
+  json:
+    class: logging_utilities.formatters.json_formatter.JsonFormatter
+    format:
+      time: isotime
+      level: levelname
+      logger: name
+      module: module
+      function: funcName
+      process: process
+      thread: thread
+      request_path: request.path
+      request_method: request.method
+      request:
+        # NOTE: django headers name are case sensitive
+        header.accept: request.headers.Accept
+        header.accept-encoding: request.headers.Accept-Encoding 
+        header.accept_language: request.headers.Accept-Language 
+      message: message
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: json
+    stream: ext://sys.stdout
+    filters:
+      - isotime
+      - django
+```
+
+**NOTE:** This require to have `django` package installed otherwise it raises `ImportError`
+
+Then in your python code use it as follow:
+
+```python
+import logging
+import logging.config
+
+import yaml
+
+from django.http import JsonResponse
+from django.conf import settings
+from django.test import RequestFactory
+
+
+config = {}
+with open('example-config.yaml', 'r') as fd:
+    config = yaml.safe_load(fd.read())
+
+logging.config.dictConfig(config)
+
+logger = logging.getLogger('your_logger')
+
+def my_page(request):
+    answer = {'success': True}
+    logger.info('My page requested', extra={'request': request})
+    return JsonResponse(answer)
+
+settings.configure()
+factory = RequestFactory()
+
+my_page(factory.get(
+    '/my_page?test=true', 
+    HTTP_ACCEPT='*/*', 
+    HTTP_ACCEPT_ENCODING='gzip', 
+    HTTP_ACCEPT_LANGUAGE='en')
+)
+```
+
+output:
+
+```shell
+{
+  "time": "2022-07-20T12:29:19.536922+02:00",
+  "level": "INFO",
+  "logger": "your_logger",
+  "module": "<stdin>",
+  "function": "my_page",
+  "process": 78479,
+  "thread": 139751209555776,
+  "request_path": "/my_page",
+  "request_method": "GET",
+  "request": {
+    "header.accept": "*/*",
+    "header.accept-encoding": "gzip",
+    "header.accept_language": "en"
+  },
+  "message": "My page requested"
+}
+```
+
+### Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)
 
 config.yaml
 
@@ -773,7 +958,7 @@ output:
   'response': {'success': True}}
 ```
 
-### Case 7. Add Specific Log Extra to the Standard Formatter
+### Case 8. Add Specific Log Extra to the Standard Formatter
 
 config.yaml
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+from setuptools import find_packages
+from setuptools import setup
 
 # Get description from README.md
 LONG_DESCRIPTION = ''

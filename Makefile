@@ -33,6 +33,7 @@ SYSTEM_PYTHON := python$(PYTHON_VERSION)
 PYTHON := $(VENV)/bin/python3
 PIP := $(VENV)/bin/pip3
 YAPF := $(VENV)/bin/yapf
+ISORT := $(VENV)/bin/isort
 NOSE := $(VENV)/bin/nose2
 PYLINT := $(VENV)/bin/pylint
 
@@ -73,6 +74,16 @@ setup: $(DEV_REQUIREMENTS_TIMESTAMP)
 .PHONY: format
 format: $(DEV_REQUIREMENTS_TIMESTAMP)
 	$(YAPF) -p -i --style .style.yapf $(PYTHON_FILES)
+	$(ISORT) $(PYTHON_FILES)
+
+
+.PHONY: ci-check-format
+ci-check-format: format
+	@if [[ -n `git status --porcelain` ]]; then \
+	 	>&2 echo "ERROR: the following files are not formatted correctly:"; \
+		>&2 git status --porcelain; \
+		exit 1; \
+	fi
 
 
 .PHONY: lint
