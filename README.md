@@ -126,13 +126,16 @@ The format can be configured either using the `format` config parameter or the `
 
 | Value        | Type   | Transformation        | Example        |
 ---------------|--------|-----------------------|----------------|
-| attribute    | string | The string is a _LogRecord_ attribute name,<br/>then the value of this attribute is used as output. | `"message"` |
-| dotted key attribute | string | The string is a dotted key to access a sub attribute of _LogRecord_.<br/>For example if the _LogRecord_ contains a dictionary attribute added via an _extra_, you can use the dotted notation to access only a sub object/value of the dictionary. | `"request.path"` |
-| str format   | string | The string contains named string format,<br/>each named format are replaced by the corresponding <br/>_LogRecord_ attribute value. | `"%(asctime)s.%(msecs)s"` |
-| object | dict | The object is embedded in the output with its value<br/>following the same rules as defined in this table. | `{"lineno": "lineno", "file": "filename"}` |
-| array | list | The list is embedded as an _array_ in the output.<br>Each value is processed using the rules from this table | `["created", "asctime"]` |
+| `LogRecord` attribute  | string | The string is a `LogRecord` attribute name,<br/>then the value of this attribute is used as output. | `"message"` |
+| `LogRecord` attribute dotted key | string | The string is a dotted key to access a sub key of a `LogRecord` dictionary attribute.<br/>For example if the `LogRecord` contains a dictionary attribute added via an `extra`, you can use the dotted notation to access only a sub object/value of this dictionary. | `"request.path"` |
+| Named string format   | string | The string contains named string format,<br/>each named format are replaced by the corresponding <br/>_LogRecord_ attribute value. | `"%(asctime)s.%(msecs)s"` |
+| String constant | string | If the string value doesn't match any of the above, it is added as constant. | `"my-constant-value"` |
+| Object | dict | The object is embedded in the output with its value<br/>following the same rules as defined in this table. | `{"lineno": "lineno", "file": "filename", "id": "%(process)x/%(thread)x", "message": "message"}` |
+| Array | list | The list is embedded as an _array_ in the output.<br>Each value is processed using the rules from this table | `["created", "asctime", "message", "%(process)x/%(thread)x"]` |
 
 You can find the _LogRecord_ attributes list in [Python Doc](https://docs.python.org/3.7/library/logging.html#logrecord-attributes)
+
+See below the [Basic Usage](#basic-usage) for more examples.
 
 ### JSON Formatter Options
 
@@ -229,9 +232,9 @@ formatters:
 
 ## Flask Request Context
 
-When using logging within a [Flask](https://flask.palletsprojects.com/en/1.1.x/) application, you can use this _Filter_ to add some context attributes to all _LogRecord_.
+When using logging within a [Flask](https://flask.palletsprojects.com/en/2.1.x/) application, you can use this _Filter_ to add some context attributes to all _LogRecord_.
 
-All _Flask Request_ attributes are supported and they are added as _LogRecord_ with the `flask_request_` prefix.
+All _Flask Request_ attributes are supported and they are added as _LogRecord_ with the `flask_request_` prefix. See [Flask Request](https://flask.palletsprojects.com/en/2.1.x/api/#flask.Request) for more details on available attributes.
 
 ### Flask Request Context Filter Constructor
 
@@ -242,6 +245,14 @@ All _Flask Request_ attributes are supported and they are added as _LogRecord_ w
 ### Flask Request Context Config Example
 
 ```yaml
+version: 1
+
+root:
+  handlers:
+    - console
+  level: DEBUG
+  propagate: True
+
 filters:
   flask:
     (): logging_utilities.filters.flask_attribute.FlaskRequestAttribute
@@ -249,8 +260,19 @@ filters:
       - url
       - method
       - headers
-      - remote_addr
       - json
+
+formatters:
+  console:
+    format: "%(asctime)s - %(message)s - %(flask_request_url)s %(flask_request_method)s %(flask_request_headers)s: %(flask_request_json)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: console
+    stream: ext://sys.stdout
+    filters:
+      - flask
 ```
 
 **NOTE**: `FlaskRequestAttribute` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
