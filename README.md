@@ -17,6 +17,8 @@ All features can be fully configured from the configuration file.
 
 **NOTE:** only python 3 is supported
 
+:warning: **Version 2.x.x BREAKING CHANGES** see [Breaking Changes](#version-2xx-breaking-changes) 
+
 ## Table of content
 
 - [Table of content](#table-of-content)
@@ -56,6 +58,7 @@ All features can be fully configured from the configuration file.
   - [Case 6. Add parts of Django Request to JSON Output](#case-6-add-parts-of-django-request-to-json-output)
   - [Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-7-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
   - [Case 8. Add Specific Log Extra to the Standard Formatter](#case-8-add-specific-log-extra-to-the-standard-formatter)
+- [Version 2.x.x Breaking Changes](#version-2xx-breaking-changes)
 - [Credits](#credits)
 
 ## Installation
@@ -1126,6 +1129,12 @@ output:
 ```shell
 2020-11-19 13:42:29,424 - DEBUG - your_logger - My log with extras - extra1=23
 ```
+
+## Version 2.x.x Breaking Changes
+
+From version 1.x.x to version 2.x.x there is the following breaking change:
+
+- Flask Attribute filter do not set anymore missing Flask attribute to empty string ! So if you configure the Flask attribute you must make sure that all attribute specified in the attribute list, exists. Also if you use the filter on a logger outside of a Flask Request context, the logger will raise a `ValueError` exception due to the missing Flask Request attribute. To avoid this you can use the new [LogRecordIgnoreMissing](#logrecordignoremissing).
 
 ## Credits
 
