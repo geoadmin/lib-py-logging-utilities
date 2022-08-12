@@ -7,6 +7,7 @@ from collections import OrderedDict
 from logging import _STYLES
 
 from logging_utilities.formatters import RECORD_DFT_ATTR
+from logging_utilities.log_record import set_log_record_ignore_missing_factory
 
 if sys.version_info < (3, 0):
     raise ImportError('Only python 3 is supported')  # pragma: no cover
@@ -35,6 +36,7 @@ class JsonFormatter(logging.Formatter):
         add_always_extra=False,
         filter_attributes=None,
         remove_empty=False,
+        ignore_missing=False,
         **kwargs
     ):
         """JSON Formatter constructor
@@ -61,9 +63,15 @@ class JsonFormatter(logging.Formatter):
                 This list is used to differentiate record attributes from log extra
                 attributes.
             remove_empty: (bool)
-                    If true the empty list, object or string in the output message are removed
+                If true the empty list, object or string in the output message are removed
+            ignore_missing: (bool)
+                If True, then all extra attributes from the log record that are missing (accessed
+                by the fmt parameter) will be replaced by an empty string instead of raising a
+                ValueError exception.
+                NOTE: This has an impact on all formater not only on this one,
+                see log_record.LogRecordIgnoreMissing.
             kwargs:
-                Additional parameters passed to json.dumps()
+                Additional parameters passed to json.dumps().
 
         Raises:
             TypeError:  When the fmt parameter is in a wrong type
@@ -82,6 +90,9 @@ class JsonFormatter(logging.Formatter):
 
         # support for `json.dumps` parameters
         self.kwargs = kwargs
+
+        if ignore_missing:
+            set_log_record_ignore_missing_factory()
 
     @classmethod
     def _parse_fmt(cls, fmt):

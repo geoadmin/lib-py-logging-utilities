@@ -24,6 +24,8 @@ All features can be fully configured from the configuration file.
 - [Release and Publish](#release-and-publish)
 - [Contribution](#contribution)
   - [Developer](#developer)
+- [Ignore missing log record attribute in formatter](#ignore-missing-log-record-attribute-in-formatter)
+  - [LogRecordIgnoreMissing](#logrecordignoremissing)
 - [JSON Formatter](#json-formatter)
   - [Configure JSON Format](#configure-json-format)
   - [JSON Formatter Options](#json-formatter-options)
@@ -112,6 +114,97 @@ make format-lint
 
 Any new feature should have its unittest class in order to be tested.
 
+## Ignore missing log record attribute in formatter
+
+When configuring a log formatter you can provide via print style any log record attribute including extra attributes. However when using extra attribute, if this attribute is then missing (e.g. because the logger did not add that extra)
+then the logging would raise a `ValueError: Formatting field not found in record: ...`.
+
+For the standard Formatter you could use the [Extra Formatter](#extra-formatter), but if you have any other Formatter you
+can use the global `logging_utilities.log_record.set_log_record_ignore_missing_factory()` method.
+
+### LogRecordIgnoreMissing
+
+The `LogRecordIgnoreMissing` factory can be used to avoid `ValueError` exception when formatting a log message from
+a log record that don't have the extra required by the formatter.
+
+For example:
+
+```python
+import logging
+
+logging.basicConfig(format="%(message)s - %(extra_param)s", level=logging.INFO, force=True)
+
+logger = logging.getLogger('my-logger')
+
+logger.info('My message', extra={'extra_param': 20})
+My message - 20
+
+logger.info('My second message')
+--- Logging error ---
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/logging/__init__.py", line 440, in format
+    return self._format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 436, in _format
+    return self._fmt % record.__dict__
+KeyError: 'extra_param'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/logging/__init__.py", line 1085, in emit
+    msg = self.format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 929, in format
+    return fmt.format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 671, in format
+    s = self.formatMessage(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 640, in formatMessage
+    return self._style.format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 442, in format
+    raise ValueError('Formatting field not found in record: %s' % e)
+ValueError: Formatting field not found in record: 'extra_param'
+...
+```
+
+To avoid such crash you can use `LogRecordIgnoreMissing` that will replace missing extra attributes by an empty string in the message.
+
+```python
+import logging
+from logging_utilities.log_record import LogRecordIgnoreMissing
+
+logging.setLogRecordFactory(LogRecordIgnoreMissing)
+
+logging.basicConfig(format="%(message)s - %(extra_param)s", level=logging.INFO, force=True)
+
+logger = logging.getLogger('my-logger')
+
+logger.info('My message', extra={'extra_param': 20})
+My message - 20
+
+logger.info('My second message')
+My second message -
+```
+
+You can also change the default value by using the helper `set_log_record_ignore_missing_factory()`
+
+```python
+import logging
+from logging_utilities.log_record import set_log_record_ignore_missing_factory
+
+set_log_record_ignore_missing_factory('my-default')
+
+logging.basicConfig(format="%(message)s - %(extra_param)s", level=logging.INFO, force=True)
+
+logger = logging.getLogger('my-logger')
+
+logger.info('My message', extra={'extra_param': 20})
+My message - 20
+
+logger.info('My second message')
+My second message - my-default
+```
+
+**:warning: NOTE that setting the log record factory is a global action that affects every logger and formatter**
+
 ## JSON Formatter
 
 **JsonFormatter** is a python logging formatter that transform the log output into a json object.
@@ -149,6 +242,7 @@ You can change some behavior using the `JsonFormatter` constructor:
 | `add_always_extra` | bool |`False` | When `True`, logging extra (`logging.log('message', extra={'my-extra': 'some value'})`) are always added to the output. Otherwise they are only added if present in `fmt`. |
 | `filter_attributes` | list | `None` | When the formatter is used with a _Logging.Filter_ that adds _LogRecord_ attributes, they can be listed here to avoid to be treated as logging _extra_. |
 | `remove_empty` | bool | `False` | When `True`, empty values (empty list, dict, None or empty string) are removed from output. |
+| `ignore_missing` | bool | `False` | If `True`, then all extra attributes from the log record that are missing (accessed by the `fmt` parameter) will be replaced by an empty string instead of raising a ValueError exception. **NOTE:** This has an impact on all formater not only on this one, see [LogRecordIgnoreMissing](#logrecordignoremissing). |
 
 The constructor parameters can be also be specified in the log configuration file using the `()` class specifier instead of `class`:
 
