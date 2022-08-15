@@ -23,13 +23,23 @@ class BasicJsonFormatterTest(unittest.TestCase):
 
     @classmethod
     def _configure_logger(
-        cls, logger, fmt=None, add_always_extra=False, remove_empty=False, style='%'
+        cls,
+        logger,
+        fmt=None,
+        add_always_extra=False,
+        remove_empty=False,
+        ignore_missing=False,
+        style='%'
     ):
         logger.setLevel(logging.DEBUG)
 
         for handler in logger.handlers:
             formatter = JsonFormatter(
-                fmt, add_always_extra=add_always_extra, remove_empty=remove_empty, style=style
+                fmt,
+                add_always_extra=add_always_extra,
+                remove_empty=remove_empty,
+                ignore_missing=ignore_missing,
+                style=style
             )
             handler.setFormatter(formatter)
 
@@ -383,6 +393,26 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ("app", "test_application"),
                 ("message", "Composed message remove empty"),
             ])
+        )
+
+    def test_remove_non_existing(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([("level", "levelname"), ("message", "message"),
+                                ("non-existing-attribute", "%(nonExistingAttribute)s"),
+                                ("another-non-existing-attribute", "non_existing.dotted.attribute"),
+                                ("non-existing-attribute-as-constant", 'constant_value')]),
+                remove_empty=True,
+                ignore_missing=True
+            )
+            logger.info('Composed message %s', 'remove non existing attribute')
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([("level", "INFO"),
+                        ("message", "Composed message remove non existing attribute"),
+                        ("non-existing-attribute-as-constant", "constant_value")])
         )
 
     def test_leave_empty(self):
