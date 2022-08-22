@@ -415,6 +415,40 @@ class BasicJsonFormatterTest(unittest.TestCase):
                         ("non-existing-attribute-as-constant", "constant_value")])
         )
 
+    def test_ignore_trailing_dot_in_key(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ("level", "levelname"),
+                    ("message", "message"),
+                    ("trailing-dotted-key", "dotted_key."),
+                ]),
+                remove_empty=False,
+                ignore_missing=True
+            )
+            logger.info('Composed message %s', 'remove non existing dotted key')
+            logger.info(
+                'Composed message %s',
+                'existing dotted key as dict',
+                extra={"dotted_key": {
+                    "a": 12, "b": "this is b"
+                }}
+            )
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([("level", "INFO"),
+                        ("message", "Composed message remove non existing dotted key"),
+                        ("trailing-dotted-key", dictionary())])
+        )
+        self.assertDictEqual(
+            json.loads(ctx.output[1], object_pairs_hook=dictionary),
+            dictionary([("level", "INFO"),
+                        ("message", "Composed message existing dotted key as dict"),
+                        ("trailing-dotted-key", dictionary([("a", 12), ("b", "this is b")]))])
+        )
+
     def test_leave_empty(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
@@ -596,5 +630,56 @@ class BasicJsonFormatterTest(unittest.TestCase):
             dictionary([
                 ("level", "INFO"),
                 ("message", "Composed message without extra request"),
+            ])
+        )
+
+    def test_constant(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('level', 'levelname'),
+                    ('1-constant', 'this is a constant'),
+                    ('2-constant', 'my_constant'),
+                    ('3-constant', 'This is a constant with dot.'),
+                    ('4-constant', 'my.constant%()s'),
+                    ('5-constant', 'my.constant.%()s'),
+                    ('my-extra', 'my_extra'),
+                    ('message', 'message'),
+                ]),
+                remove_empty=False,
+                ignore_missing=True
+            )
+            logger.info(
+                'Composed message %s',
+                'with extra and constants',
+                extra={'my_extra': 'this is an extra'}
+            )
+            logger.info('Composed message %s', 'without extra')
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ('1-constant', 'this is a constant'),
+                ('2-constant', 'my_constant'),
+                ('3-constant', 'This is a constant with dot.'),
+                ('4-constant', 'my.constant'),
+                ('5-constant', 'my.constant.'),
+                ("my-extra", "this is an extra"),
+                ("message", "Composed message with extra and constants"),
+            ])
+        )
+        self.assertDictEqual(
+            json.loads(ctx.output[1], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ('1-constant', 'this is a constant'),
+                ('2-constant', 'my_constant'),
+                ('3-constant', 'This is a constant with dot.'),
+                ('4-constant', 'my.constant'),
+                ('5-constant', 'my.constant.'),
+                ("my-extra", "my_extra"),
+                ("message", "Composed message without extra"),
             ])
         )
