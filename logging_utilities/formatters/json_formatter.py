@@ -1,6 +1,7 @@
 import json
 import logging
 import logging.config
+import re
 import sys
 import warnings
 from collections import OrderedDict
@@ -20,6 +21,8 @@ else:
     dictionary = OrderedDict
 
 DEFAULT_FORMAT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
+
+dotted_key_regex = re.compile(r'^[a-zA-Z_][\w\d]*\.([a-zA-Z_][\w\d\.]*)*$')
 
 
 class JsonFormatter(logging.Formatter):
@@ -202,15 +205,17 @@ class JsonFormatter(logging.Formatter):
             next_dotted_key = None
             if '.' in dotted_key:
                 key, next_dotted_key = dotted_key.split('.', maxsplit=1)
-            if next_dotted_key is not None:
-                return get_dotted_key(dct.get(key, {}), next_dotted_key)
-
+                if next_dotted_key != '':
+                    return get_dotted_key(dct.get(key, {}), next_dotted_key)
+                # if the dotted key has a trailing dot, this mean that the value must be a dict
+                # therefore set the default value to an empty dictionary.
+                return dct.get(key, dictionary())
             return dct.get(key, '')
 
         return get_dotted_key(record.__dict__, str_value)
 
     def _get_string_key_value(self, record, value):
-        if '.' in value:
+        if dotted_key_regex.match(value):
             return self._get_dotted_key_value(record, value)
 
         # The final string value can contain formatting strings (e.g. "%(asctime)s")

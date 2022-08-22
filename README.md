@@ -223,7 +223,7 @@ The format can be configured either using the `format` config parameter or the `
 | Value        | Type   | Transformation        | Example        |
 ---------------|--------|-----------------------|----------------|
 | `LogRecord` attribute  | string | The string is a `LogRecord` attribute name,<br/>then the value of this attribute is used as output. | `"message"` |
-| `LogRecord` attribute dotted key | string | The string is a dotted key to access a sub key of a `LogRecord` dictionary attribute.<br/>For example if the `LogRecord` contains a dictionary attribute added via an `extra`, you can use the dotted notation to access only a sub object/value of this dictionary. | `"request.path"` |
+| `LogRecord` attribute dotted key | string | The string is a dotted key to access a sub key of a `LogRecord` dictionary attribute.<br/>For example if the `LogRecord` contains a dictionary attribute added via an `extra`, you can use the dotted notation to access only a sub object/value of this dictionary. Note if the dotted key attribute doesn't exists it will use the default value which is `''` unless the dotted key has a trailing `.` then the default value will be `{}` instead of `''`.<br/>Trailing dot can also be used to differentiate between a constant and a dictionary `LogRecord` attribute, for example if you have some logs that add a dictionary called `headers` to the extra but that not all logs contains this extra, you can defined it as follow in `fmt`; `request_headers: headers.`, this way `headers.` will be replaced by the extras `headers` dictionary if available and if not it will be replaced by an empty dictionary (without trailing dot it would have been treated as a constant) | `"request.path"` |
 | Named string format   | string | The string contains named string format,<br/>each named format are replaced by the corresponding <br/>_LogRecord_ attribute value. | `"%(asctime)s.%(msecs)s"` |
 | String constant | string | If the string value doesn't match any of the above, it is added as constant. | `"my-constant-value"` |
 | Object | dict | The object is embedded in the output with its value<br/>following the same rules as defined in this table. | `{"lineno": "lineno", "file": "filename", "id": "%(process)x/%(thread)x", "message": "message"}` |
@@ -693,11 +693,16 @@ formatters:
       process: process
       thread: thread
       request:
-        url: flask_request_url
-        method: flask_request_method
-        headers: flask_request_headers
-        data: flask_request_json
-        remote: flask_request_remote_addr
+        # We use the "%()s" notation here to ensure a string output and also if the LogRecord has
+        # no flask context, meaning no `flask_request_url` attribute, the "%()s" notation ensure
+        # to have an empty string instead of treating `flask_request_url` as a string constant.
+        url: "%(flask_request_url)s"
+        method: "%(flask_request_method)s"
+        # We use a trailing dot here to ensure to have a dictionary output even if the LogRecord 
+        # doesn't have a flask_request_headers attribute.
+        headers: flask_request_headers.
+        data: flask_request_json.
+        remote: "%(flask_request_remote_addr)s"
       message: message
 
 handlers:
