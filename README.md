@@ -17,7 +17,7 @@ All features can be fully configured from the configuration file.
 
 **NOTE:** only python 3 is supported
 
-:warning: **Version 2.x.x BREAKING CHANGES** see [Breaking Changes](#version-2xx-breaking-changes) 
+:warning: **Version 3.x.x BREAKING CHANGES** see [Breaking Changes](#version-3xx-breaking-changes)
 
 ## Table of content
 
@@ -31,6 +31,7 @@ All features can be fully configured from the configuration file.
 - [JSON Formatter](#json-formatter)
   - [Configure JSON Format](#configure-json-format)
   - [JSON Formatter Options](#json-formatter-options)
+  - [JSON Output - Type Consistency](#json-output---type-consistency)
 - [Extra Formatter](#extra-formatter)
   - [Extra Formatter Constructor](#extra-formatter-constructor)
   - [Extra Formatter Config Example](#extra-formatter-config-example)
@@ -58,7 +59,9 @@ All features can be fully configured from the configuration file.
   - [Case 6. Add parts of Django Request to JSON Output](#case-6-add-parts-of-django-request-to-json-output)
   - [Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-7-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
   - [Case 8. Add Specific Log Extra to the Standard Formatter](#case-8-add-specific-log-extra-to-the-standard-formatter)
-- [Version 2.x.x Breaking Changes](#version-2xx-breaking-changes)
+- [Breaking Changes](#breaking-changes)
+  - [Version 3.x.x Breaking Changes](#version-3xx-breaking-changes)
+  - [Version 2.x.x Breaking Changes](#version-2xx-breaking-changes)
 - [Credits](#credits)
 
 ## Installation
@@ -206,7 +209,7 @@ logger.info('My second message')
 My second message - my-default
 ```
 
-**:warning: NOTE that setting the log record factory is a global action that affects every logger and formatter**
+:warning: **NOTE that setting the log record factory is a global action that affects every logger and formatter**
 
 ## JSON Formatter
 
@@ -222,12 +225,13 @@ The format can be configured either using the `format` config parameter or the `
 
 | Value        | Type   | Transformation        | Example        |
 ---------------|--------|-----------------------|----------------|
-| `LogRecord` attribute  | string | The string is a `LogRecord` attribute name,<br/>then the value of this attribute is used as output. | `"message"` |
-| `LogRecord` attribute dotted key | string | The string is a dotted key to access a sub key of a `LogRecord` dictionary attribute.<br/>For example if the `LogRecord` contains a dictionary attribute added via an `extra`, you can use the dotted notation to access only a sub object/value of this dictionary. Note if the dotted key attribute doesn't exists it will use the default value which is `''` unless the dotted key has a trailing `.` then the default value will be `{}` instead of `''`.<br/>Trailing dot can also be used to differentiate between a constant and a dictionary `LogRecord` attribute, for example if you have some logs that add a dictionary called `headers` to the extra but that not all logs contains this extra, you can defined it as follow in `fmt`; `request_headers: headers.`, this way `headers.` will be replaced by the extras `headers` dictionary if available and if not it will be replaced by an empty dictionary (without trailing dot it would have been treated as a constant) | `"request.path"` |
-| Named string format   | string | The string contains named string format,<br/>each named format are replaced by the corresponding <br/>_LogRecord_ attribute value. | `"%(asctime)s.%(msecs)s"` |
-| String constant | string | If the string value doesn't match any of the above, it is added as constant. | `"my-constant-value"` |
+| `LogRecord` attribute  | string | The string is a `LogRecord` attribute name,<br/>then the value of this attribute is used as output. See also [Type Consistency](#json-output---type-consistency). | `"message"` |
+| `LogRecord` attribute dotted key | string | The string is a dotted key to access a sub key of a `LogRecord` dictionary attribute.<br/>For example if the `LogRecord` contains a dictionary attribute added via an `extra`, you can use the dotted notation to access only a sub object/value of this dictionary. Note if the dotted key attribute doesn't exists it will raise a `ValueError` unless you set `ignore_missing=True` in the Formatter config. In the latest case missing attribute will be replaced by `''` unless the dotted key has a trailing `.` then the default value will be `{}` instead of `''`.<br/>See also [Type Consistency](#json-output---type-consistency). | `"request.path"` |
+| Named string format   | string | The string contains named string format,<br/>each named format are replaced by the corresponding <br/>_LogRecord_ attribute value.<br/>When using the `%` string formatting style, you can also used dotted notation to access dictionary sub-key; `%(request.headers)s`. NOTE that in string format the dictionary key must be a valid python attribute name (cannot contain spaces or special characters). | `"%(asctime)s.%(msecs)s"` |
 | Object | dict | The object is embedded in the output with its value<br/>following the same rules as defined in this table. | `{"lineno": "lineno", "file": "filename", "id": "%(process)x/%(thread)x", "message": "message"}` |
 | Array | list | The list is embedded as an _array_ in the output.<br>Each value is processed using the rules from this table | `["created", "asctime", "message", "%(process)x/%(thread)x"]` |
+
+:warning: **If the value doesn't match any of the table above it will raise a `ValueError` unless you specify `ignore_missing=True` in the configuration**
 
 You can find the _LogRecord_ attributes list in [Python Doc](https://docs.python.org/3.7/library/logging.html#logrecord-attributes)
 
@@ -283,6 +287,33 @@ format: {
 datefmt = %Y-%m-%d %H:%M # OPTIONAL
 style = % # OPTIONAL
 ```
+
+### JSON Output - Type Consistency
+
+When you use `ignore_missing=True`, all missing attributes from the log record will be replaced by an empty string. This can be an issue if you require type consistency accross JSON logs. To avoid this, you can use the trailing dot notation.
+
+||||
+|---|---|---|
+| Single trailing dot | `attribute_name.`  | Default to `{}` when `attribute_name` is missing from log record |
+| Double trailing dot | `attribute_name..` | Default to `[]` when `attribute_name` is missing from log record |
+
+This is quite usefull if you want to add a list or an object in your JSON from a LogRecord that might be missing. For example when using the [Flask Request Context](#flask-request-context) and you want to add the headers dictionary as object, you can do as follow:
+
+```python
+fmt={"message": "message", "request": {"headers": "flask_request_headers."}}
+```
+
+This way if the log record is outside a Flask request, your log output would be
+
+`{"message": "this is the message", "request": {"headers": {}}}`
+
+instead of
+
+`{"message": "this is the message", "request": {"headers": ""}}`
+
+and when the record is within a Flask context you will have
+
+`{"message": "this is the message", "request": {"headers": {"Host": "www.example.com", ...}}}`
 
 ## Extra Formatter
 
@@ -1135,7 +1166,15 @@ output:
 2020-11-19 13:42:29,424 - DEBUG - your_logger - My log with extras - extra1=23
 ```
 
-## Version 2.x.x Breaking Changes
+## Breaking Changes
+
+### Version 3.x.x Breaking Changes
+
+From version 2.x.x to version 3.x.x there is the following breaking change:
+
+- JSON Formatter doesn't support anymore string constant in the `fmt` parameter. Now if you want to have a string constant in all of you JSON logs output, you need to use the [Constant Record Attribute Filter](#constant-record-attribute).
+
+### Version 2.x.x Breaking Changes
 
 From version 1.x.x to version 2.x.x there is the following breaking change:
 

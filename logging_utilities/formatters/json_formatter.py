@@ -42,6 +42,14 @@ def flatten_dict(dct, parent_key='', sep='.'):
     return dict(_flatten_dict_gen(dct, parent_key, sep))
 
 
+def is_style_format_valid(style):
+    try:
+        style.validate()
+        return True
+    except ValueError:
+        return False
+
+
 class EnhancedPercentStyle(PercentStyle):
     validation_pattern = re.compile(
         r'%\([\w\.]+\)[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%]', re.I
@@ -135,6 +143,7 @@ class JsonFormatter(logging.Formatter):
         # support for `json.dumps` parameters
         self.kwargs = kwargs
 
+        self.ignore_missing = ignore_missing
         if ignore_missing:
             set_log_record_ignore_missing_factory()
 
@@ -238,10 +247,17 @@ class JsonFormatter(logging.Formatter):
                     'Invalid value type={} for value={} in fmt'.format(type(value), value)
                 )  # pragma no cover
 
-    @classmethod
-    def _get_dotted_key_value(cls, record, str_value):
-        # When the value is a string we first split the string by '.' to support dictionary
-        # sub-keys
+    def _get_dotted_key_value(self, record, str_value):
+        default_value = ''
+        if str_value.endswith('..'):
+            # if the dotted key has two trailing dot, this means that the value must be a list
+            # therefore set the default value to an empty list
+            default_value = []
+        elif str_value.endswith('.'):
+            # if the dotted key has a trailing dot, this mean that the value must be a dict
+            # therefore set the default value to an empty dictionary.
+            default_value = dictionary()
+
         def get_dotted_key(dct, dotted_key):
             if not isinstance(dct, (dict)):
                 raise ValueError(
@@ -252,23 +268,27 @@ class JsonFormatter(logging.Formatter):
             next_dotted_key = None
             if '.' in dotted_key:
                 key, next_dotted_key = dotted_key.split('.', maxsplit=1)
-                if next_dotted_key != '':
+                if next_dotted_key not in ['', '.']:
                     return get_dotted_key(dct.get(key, {}), next_dotted_key)
-                # if the dotted key has a trailing dot, this mean that the value must be a dict
-                # therefore set the default value to an empty dictionary.
-                return dct.get(key, dictionary())
-            return dct.get(key, '')
+            if self.ignore_missing:
+                return dct.get(key, default_value)
+            try:
+                return dct[key]
+            except KeyError as error:
+                raise ValueError('Key "{}" not found in log record'.format(key)) from error
 
         return get_dotted_key(record.__dict__, str_value)
 
     def _get_string_key_value(self, record, value):
-        if dotted_key_regex.match(value):
-            return self._get_dotted_key_value(record, value)
-
-        # The final string value can contain formatting strings (e.g. "%(asctime)s")
-        # therefore try to format it.
         style = self._style_constructor(value)
-        return style.format(record)
+
+        if is_style_format_valid(style):
+            # The value contains a valid style formatting (e.g. %(asctime)s)
+            # therefore use the style formatter.
+            return style.format(record)
+
+        # Otherwise try to get a dotted key from the record
+        return self._get_dotted_key_value(record, value)
 
     def usesTime(self):
         """
