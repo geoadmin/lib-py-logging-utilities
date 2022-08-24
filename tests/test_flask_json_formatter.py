@@ -10,7 +10,7 @@ from logging_utilities.filters.flask_attribute import FlaskRequestAttribute
 from logging_utilities.formatters.json_formatter import JsonFormatter
 
 # From python3.7, dict is ordered
-if sys.version_info >= (3, 7):
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
 else:
     dictionary = OrderedDict

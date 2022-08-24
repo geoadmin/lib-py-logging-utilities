@@ -12,7 +12,7 @@ from logging_utilities.filters import ConstAttribute
 from logging_utilities.formatters.json_formatter import JsonFormatter
 
 # From python3.7, dict is ordered
-if sys.version_info >= (3, 7):
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
 else:
     dictionary = OrderedDict
@@ -111,21 +111,25 @@ class BasicJsonFormatterTest(unittest.TestCase):
             ])
         )
 
-    @params('non.existing', '%(non_existing)s', '%(non.existing)s', '%(non.existing)s with text')
-    def test_missing_attribute_raise(self, attribute):
-        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
-            logger = logging.getLogger('test_formatter')
-            self._configure_logger(
-                logger,
-                dictionary([
-                    ('level', 'levelname'),
-                    ('non-existing', attribute),
-                    ('message', 'message'),
-                ]),
-            )
-            with self.assertRaises(ValueError):
-                logger.info('Simple message')
-        self.assertListEqual(ctx.output, [])
+    if sys.version_info.major >= 3 and sys.version_info.minor >= 8:
+        # Python version prior to 3.8 do not raise any exception on non existing attribute
+        @params(
+            'non.existing', '%(non_existing)s', '%(non.existing)s', '%(non.existing)s with text'
+        )
+        def test_missing_attribute_raise(self, attribute):
+            with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+                logger = logging.getLogger('test_formatter')
+                self._configure_logger(
+                    logger,
+                    dictionary([
+                        ('level', 'levelname'),
+                        ('non-existing', attribute),
+                        ('message', 'message'),
+                    ]),
+                )
+                with self.assertRaises((ValueError, KeyError)):
+                    logger.info('Simple message')
+            self.assertListEqual(ctx.output, [])
 
     @params(
         (

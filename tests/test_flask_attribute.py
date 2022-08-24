@@ -112,7 +112,9 @@ class FlaskAttributeTest(unittest.TestCase):
             with app.test_request_context('/make_report/2017?param1=value1&param2=value2'):
                 logger.info('Simple message')
 
-            with app.test_request_context(f'/make_report/2017?param1={quote("This a string ?")}'):
+            with app.test_request_context(
+                '/make_report/2017?param1={}'.format(quote("This a string ?"))
+            ):
                 logger.info('Simple message')
 
         self.assertEqual(

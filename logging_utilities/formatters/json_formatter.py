@@ -7,26 +7,26 @@ import warnings
 from collections import OrderedDict
 from collections.abc import MutableMapping
 from functools import partial
-from logging import _STYLES
 from logging import BASIC_FORMAT
-from logging import PercentStyle
+from logging import PercentStyle as _PercentStyle
+from logging import StrFormatStyle as _StrFormatStyle
+from logging import StringTemplateStyle as _StringTemplateStyle
 
 from logging_utilities.formatters import RECORD_DFT_ATTR
 from logging_utilities.log_record import _DictIgnoreMissing
 from logging_utilities.log_record import set_log_record_ignore_missing_factory
 
-if sys.version_info < (3, 0):
+if sys.version_info.major < 3:
     raise ImportError('Only python 3 is supported')  # pragma: no cover
 
 # From python3.7, dict is ordered. Ordered dict are preferred in order to keep the json output
 # in the same order as its definition
-if sys.version_info >= (3, 7):
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
 else:
     dictionary = OrderedDict  # pragma: no cover
 
 DEFAULT_FORMAT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
-_ENHANCED_STYLES = _STYLES.copy()
 
 
 def _flatten_dict_gen(dct, parent_key, sep):
@@ -50,6 +50,35 @@ def is_style_format_valid(style):
         return False
 
 
+if sys.version_info.major >= 3 and sys.version_info.minor > 7:
+    StrFormatStyle = _StrFormatStyle
+    StringTemplateStyle = _StringTemplateStyle
+    PercentStyle = _PercentStyle
+else:
+    # pragma: no cover
+    # Python version prior 3.8 don't have a validate() method on the Style class.
+    class ValidateStyleMixin():
+
+        def validate(self):
+            if not self.validation_pattern.search(self._fmt):
+                raise ValueError(
+                    "Invalid format '%s' for '%s' style" % (self._fmt, self.default_format[0])
+                )
+
+    class PercentStyle(_PercentStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(
+            r'%\(\w+\)[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%]', re.I
+        )
+
+    class StrFormatStyle(_StrFormatStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(
+            r'{[a-z_]\w*(![rsa])?(:[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%])?}', re.I
+        )
+
+    class StringTemplateStyle(_StringTemplateStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(r'{[a-z_]\w*}', re.I)
+
+
 class EnhancedPercentStyle(PercentStyle):
     validation_pattern = re.compile(
         r'%\([\w\.]+\)[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%]', re.I
@@ -66,7 +95,11 @@ class EnhancedPercentStyle(PercentStyle):
         return self._fmt % dct
 
 
-_ENHANCED_STYLES['%'] = (EnhancedPercentStyle, BASIC_FORMAT)
+_ENHANCED_STYLES = {
+    '%': (EnhancedPercentStyle, BASIC_FORMAT),
+    '{': (StrFormatStyle, '{levelname}:{name}:{message}'),
+    '$': (StringTemplateStyle, '${levelname}:${name}:${message}'),
+}
 
 
 class JsonFormatter(logging.Formatter):
@@ -181,7 +214,7 @@ class JsonFormatter(logging.Formatter):
             return False
 
         extras = {key: record.__dict__[key] for key in record.__dict__ if is_extra_attribute(key)}
-        if sys.version_info >= (3, 7):
+        if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
             return extras
         return dictionary((key, extras[key]) for key in sorted(extras.keys()))  # pragma no cover
 
@@ -269,7 +302,7 @@ class JsonFormatter(logging.Formatter):
             if '.' in dotted_key:
                 key, next_dotted_key = dotted_key.split('.', maxsplit=1)
                 if next_dotted_key not in ['', '.']:
-                    return get_dotted_key(dct.get(key, {}), next_dotted_key)
+                    return get_dotted_key(dct.get(key, dictionary()), next_dotted_key)
             if self.ignore_missing:
                 return dct.get(key, default_value)
             try:
