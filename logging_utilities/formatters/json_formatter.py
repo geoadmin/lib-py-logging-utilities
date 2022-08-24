@@ -23,7 +23,7 @@ if sys.version_info < (3, 0):
 if sys.version_info >= (3, 7):
     dictionary = dict
 else:
-    dictionary = OrderedDict
+    dictionary = OrderedDict  # pragma: no cover
 
 DEFAULT_FORMAT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
 _ENHANCED_STYLES = _STYLES.copy()
@@ -144,15 +144,13 @@ class JsonFormatter(logging.Formatter):
             return json.loads(fmt, object_pairs_hook=dictionary)
         if isinstance(fmt, (dictionary, OrderedDict)):
             return fmt
-        if isinstance(fmt, dict):
+        if isinstance(fmt, dict):  # pragma no cover
             warnings.warn(
                 "Current python version is lower than 3.7.0, the key's order of dict may be "
                 "different than the definition, please use `OrderedDict` instead.",
                 UserWarning
             )
             return dictionary((k, fmt[k]) for k in sorted(fmt.keys()))
-        if fmt is None:
-            return DEFAULT_FORMAT
 
         raise TypeError(
             '`{}` type is not supported, `fmt` must be json `str`, `OrderedDict` or `dict` type.'.
@@ -176,7 +174,7 @@ class JsonFormatter(logging.Formatter):
         extras = {key: record.__dict__[key] for key in record.__dict__ if is_extra_attribute(key)}
         if sys.version_info >= (3, 7):
             return extras
-        return dictionary((key, extras[key]) for key in sorted(extras.keys()))
+        return dictionary((key, extras[key]) for key in sorted(extras.keys()))  # pragma no cover
 
     def _add_list_to_message(self, record, lst, message):
         for value in lst:
@@ -205,6 +203,10 @@ class JsonFormatter(logging.Formatter):
                     pass
                 else:
                     message.append(intermediate_msg)
+            else:
+                raise ValueError(
+                    'Invalid value type={} for value={} in fmt'.format(type(value), value)
+                )  # pragma no cover
 
     def _add_object_to_message(self, record, obj, message):
         for key, value in obj.items():
@@ -231,6 +233,10 @@ class JsonFormatter(logging.Formatter):
                 message[key] = self._get_string_key_value(record, value)
                 if self.remove_empty and not message[key]:
                     del message[key]
+            else:
+                raise ValueError(
+                    'Invalid value type={} for value={} in fmt'.format(type(value), value)
+                )  # pragma no cover
 
     @classmethod
     def _get_dotted_key_value(cls, record, str_value):
@@ -239,7 +245,7 @@ class JsonFormatter(logging.Formatter):
         def get_dotted_key(dct, dotted_key):
             if not isinstance(dct, (dict)):
                 raise ValueError(
-                    f'Cannot get dotted key "{dotted_key}" from "{dct}": '
+                    'Cannot get dotted key "{}" from "{}": '.format(dotted_key, dct) +
                     'is not a record or dictionary'
                 )  # pragma: no cover
             key = dotted_key
