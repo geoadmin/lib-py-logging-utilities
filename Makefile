@@ -111,7 +111,7 @@ package: $(PREP_PACKAGING_TIMESTAMP)
 
 
 .PHONY: publish
-publish: clean test package publish-check
+publish: clean_venv clean test package publish-check
 	@echo "Tag and upload package version=$(PACKAGE_VERSION)"
 	@# Check if we use interactive credentials or not
 	@if [ -n "$(PYPI_PASSWORD)" ]; then \
@@ -127,6 +127,7 @@ publish: clean test package publish-check
 
 .PHONY: clean_venv
 clean_venv:
+	if [ -e $(VENV)/bin/deactivate ]; then $(VENV)/deactivate; fi
 	rm -rf $(VENV)
 
 
