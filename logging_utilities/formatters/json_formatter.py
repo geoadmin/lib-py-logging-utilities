@@ -5,9 +5,14 @@ import re
 import sys
 import warnings
 from collections import OrderedDict
+from collections.abc import MutableMapping
+from functools import partial
 from logging import _STYLES
+from logging import BASIC_FORMAT
+from logging import PercentStyle
 
 from logging_utilities.formatters import RECORD_DFT_ATTR
+from logging_utilities.log_record import _DictIgnoreMissing
 from logging_utilities.log_record import set_log_record_ignore_missing_factory
 
 if sys.version_info < (3, 0):
@@ -21,8 +26,39 @@ else:
     dictionary = OrderedDict
 
 DEFAULT_FORMAT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
+_ENHANCED_STYLES = _STYLES.copy()
 
-dotted_key_regex = re.compile(r'^[a-zA-Z_][\w\d]*\.([a-zA-Z_][\w\d\.]*)*$')
+
+def _flatten_dict_gen(dct, parent_key, sep):
+    for key, value in dct.items():
+        new_key = parent_key + sep + key if parent_key else key
+        if isinstance(value, MutableMapping):
+            yield from flatten_dict(value, new_key, sep=sep).items()
+        else:
+            yield new_key, value
+
+
+def flatten_dict(dct, parent_key='', sep='.'):
+    return dict(_flatten_dict_gen(dct, parent_key, sep))
+
+
+class EnhancedPercentStyle(PercentStyle):
+    validation_pattern = re.compile(
+        r'%\([\w\.]+\)[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%]', re.I
+    )
+
+    def __init__(self, fmt, ignore_missing=False):
+        super().__init__(fmt)
+        self.ignore_missing = ignore_missing
+
+    def _format(self, record):
+        dct = {**record.__dict__, **flatten_dict(record.__dict__)}
+        if self.ignore_missing:
+            return self._fmt % _DictIgnoreMissing(dct)
+        return self._fmt % dct
+
+
+_ENHANCED_STYLES['%'] = (EnhancedPercentStyle, BASIC_FORMAT)
 
 
 class JsonFormatter(logging.Formatter):
@@ -84,7 +120,12 @@ class JsonFormatter(logging.Formatter):
 
         if fmt is None:
             fmt = DEFAULT_FORMAT
-        self._style_constructor = _STYLES[style][0]
+        if style == '%':
+            self._style_constructor = partial(
+                _ENHANCED_STYLES[style][0], ignore_missing=ignore_missing
+            )
+        else:
+            self._style_constructor = _ENHANCED_STYLES[style][0]
         self._use_time = str(fmt).find('asctime') >= 0
         self.json_fmt = self._parse_fmt(fmt)
         self.add_always_extra = add_always_extra
