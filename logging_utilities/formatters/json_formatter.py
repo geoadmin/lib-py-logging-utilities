@@ -5,24 +5,101 @@ import re
 import sys
 import warnings
 from collections import OrderedDict
-from logging import _STYLES
+from collections.abc import MutableMapping
+from functools import partial
+from logging import BASIC_FORMAT
+from logging import PercentStyle as _PercentStyle
+from logging import StrFormatStyle as _StrFormatStyle
+from logging import StringTemplateStyle as _StringTemplateStyle
 
 from logging_utilities.formatters import RECORD_DFT_ATTR
+from logging_utilities.log_record import _DictIgnoreMissing
 from logging_utilities.log_record import set_log_record_ignore_missing_factory
 
-if sys.version_info < (3, 0):
+if sys.version_info.major < 3:
     raise ImportError('Only python 3 is supported')  # pragma: no cover
 
 # From python3.7, dict is ordered. Ordered dict are preferred in order to keep the json output
 # in the same order as its definition
-if sys.version_info >= (3, 7):
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
 else:
-    dictionary = OrderedDict
+    dictionary = OrderedDict  # pragma: no cover
 
 DEFAULT_FORMAT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
 
-dotted_key_regex = re.compile(r'^[a-zA-Z_][\w\d]*\.([a-zA-Z_][\w\d\.]*)*$')
+
+def _flatten_dict_gen(dct, parent_key, sep):
+    for key, value in dct.items():
+        new_key = parent_key + sep + key if parent_key else key
+        if isinstance(value, MutableMapping):
+            yield from flatten_dict(value, new_key, sep=sep).items()
+        else:
+            yield new_key, value
+
+
+def flatten_dict(dct, parent_key='', sep='.'):
+    return dict(_flatten_dict_gen(dct, parent_key, sep))
+
+
+def is_style_format_valid(style):
+    try:
+        style.validate()
+        return True
+    except ValueError:
+        return False
+
+
+if sys.version_info.major >= 3 and sys.version_info.minor > 7:
+    StrFormatStyle = _StrFormatStyle
+    StringTemplateStyle = _StringTemplateStyle
+    PercentStyle = _PercentStyle
+else:
+    # pragma: no cover
+    # Python version prior 3.8 don't have a validate() method on the Style class.
+    class ValidateStyleMixin():
+
+        def validate(self):
+            if not self.validation_pattern.search(self._fmt):
+                raise ValueError(
+                    "Invalid format '%s' for '%s' style" % (self._fmt, self.default_format[0])
+                )
+
+    class PercentStyle(_PercentStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(
+            r'%\(\w+\)[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%]', re.I
+        )
+
+    class StrFormatStyle(_StrFormatStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(
+            r'{[a-z_]\w*(![rsa])?(:[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%])?}', re.I
+        )
+
+    class StringTemplateStyle(_StringTemplateStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(r'{[a-z_]\w*}', re.I)
+
+
+class EnhancedPercentStyle(PercentStyle):
+    validation_pattern = re.compile(
+        r'%\([\w\.]+\)[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%]', re.I
+    )
+
+    def __init__(self, fmt, ignore_missing=False):
+        super().__init__(fmt)
+        self.ignore_missing = ignore_missing
+
+    def _format(self, record):
+        dct = {**record.__dict__, **flatten_dict(record.__dict__)}
+        if self.ignore_missing:
+            return self._fmt % _DictIgnoreMissing(dct)
+        return self._fmt % dct
+
+
+_ENHANCED_STYLES = {
+    '%': (EnhancedPercentStyle, BASIC_FORMAT),
+    '{': (StrFormatStyle, '{levelname}:{name}:{message}'),
+    '$': (StringTemplateStyle, '${levelname}:${name}:${message}'),
+}
 
 
 class JsonFormatter(logging.Formatter):
@@ -84,7 +161,12 @@ class JsonFormatter(logging.Formatter):
 
         if fmt is None:
             fmt = DEFAULT_FORMAT
-        self._style_constructor = _STYLES[style][0]
+        if style == '%':
+            self._style_constructor = partial(
+                _ENHANCED_STYLES[style][0], ignore_missing=ignore_missing
+            )
+        else:
+            self._style_constructor = _ENHANCED_STYLES[style][0]
         self._use_time = str(fmt).find('asctime') >= 0
         self.json_fmt = self._parse_fmt(fmt)
         self.add_always_extra = add_always_extra
@@ -94,6 +176,7 @@ class JsonFormatter(logging.Formatter):
         # support for `json.dumps` parameters
         self.kwargs = kwargs
 
+        self.ignore_missing = ignore_missing
         if ignore_missing:
             set_log_record_ignore_missing_factory()
 
@@ -103,15 +186,13 @@ class JsonFormatter(logging.Formatter):
             return json.loads(fmt, object_pairs_hook=dictionary)
         if isinstance(fmt, (dictionary, OrderedDict)):
             return fmt
-        if isinstance(fmt, dict):
+        if isinstance(fmt, dict):  # pragma no cover
             warnings.warn(
                 "Current python version is lower than 3.7.0, the key's order of dict may be "
                 "different than the definition, please use `OrderedDict` instead.",
                 UserWarning
             )
             return dictionary((k, fmt[k]) for k in sorted(fmt.keys()))
-        if fmt is None:
-            return DEFAULT_FORMAT
 
         raise TypeError(
             '`{}` type is not supported, `fmt` must be json `str`, `OrderedDict` or `dict` type.'.
@@ -133,9 +214,9 @@ class JsonFormatter(logging.Formatter):
             return False
 
         extras = {key: record.__dict__[key] for key in record.__dict__ if is_extra_attribute(key)}
-        if sys.version_info >= (3, 7):
+        if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
             return extras
-        return dictionary((key, extras[key]) for key in sorted(extras.keys()))
+        return dictionary((key, extras[key]) for key in sorted(extras.keys()))  # pragma no cover
 
     def _add_list_to_message(self, record, lst, message):
         for value in lst:
@@ -164,6 +245,10 @@ class JsonFormatter(logging.Formatter):
                     pass
                 else:
                     message.append(intermediate_msg)
+            else:
+                raise ValueError(
+                    'Invalid value type={} for value={} in fmt'.format(type(value), value)
+                )  # pragma no cover
 
     def _add_object_to_message(self, record, obj, message):
         for key, value in obj.items():
@@ -190,38 +275,53 @@ class JsonFormatter(logging.Formatter):
                 message[key] = self._get_string_key_value(record, value)
                 if self.remove_empty and not message[key]:
                     del message[key]
+            else:
+                raise ValueError(
+                    'Invalid value type={} for value={} in fmt'.format(type(value), value)
+                )  # pragma no cover
 
-    @classmethod
-    def _get_dotted_key_value(cls, record, str_value):
-        # When the value is a string we first split the string by '.' to support dictionary
-        # sub-keys
+    def _get_dotted_key_value(self, record, str_value):
+        default_value = ''
+        if str_value.endswith('..'):
+            # if the dotted key has two trailing dot, this means that the value must be a list
+            # therefore set the default value to an empty list
+            default_value = []
+        elif str_value.endswith('.'):
+            # if the dotted key has a trailing dot, this mean that the value must be a dict
+            # therefore set the default value to an empty dictionary.
+            default_value = dictionary()
+
         def get_dotted_key(dct, dotted_key):
             if not isinstance(dct, (dict)):
                 raise ValueError(
-                    f'Cannot get dotted key "{dotted_key}" from "{dct}": '
+                    'Cannot get dotted key "{}" from "{}": '.format(dotted_key, dct) +
                     'is not a record or dictionary'
                 )  # pragma: no cover
             key = dotted_key
             next_dotted_key = None
             if '.' in dotted_key:
                 key, next_dotted_key = dotted_key.split('.', maxsplit=1)
-                if next_dotted_key != '':
-                    return get_dotted_key(dct.get(key, {}), next_dotted_key)
-                # if the dotted key has a trailing dot, this mean that the value must be a dict
-                # therefore set the default value to an empty dictionary.
-                return dct.get(key, dictionary())
-            return dct.get(key, '')
+                if next_dotted_key not in ['', '.']:
+                    return get_dotted_key(dct.get(key, dictionary()), next_dotted_key)
+            if self.ignore_missing:
+                return dct.get(key, default_value)
+            try:
+                return dct[key]
+            except KeyError as error:
+                raise ValueError('Key "{}" not found in log record'.format(key)) from error
 
         return get_dotted_key(record.__dict__, str_value)
 
     def _get_string_key_value(self, record, value):
-        if dotted_key_regex.match(value):
-            return self._get_dotted_key_value(record, value)
-
-        # The final string value can contain formatting strings (e.g. "%(asctime)s")
-        # therefore try to format it.
         style = self._style_constructor(value)
-        return style.format(record)
+
+        if is_style_format_valid(style):
+            # The value contains a valid style formatting (e.g. %(asctime)s)
+            # therefore use the style formatter.
+            return style.format(record)
+
+        # Otherwise try to get a dotted key from the record
+        return self._get_dotted_key_value(record, value)
 
     def usesTime(self):
         """

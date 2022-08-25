@@ -8,7 +8,7 @@ from django.http import HttpRequest
 
 # From python3.7, dict is ordered. Ordered dict are preferred in order to keep the json output
 # in the same order as its definition
-if sys.version_info >= (3, 7):
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
 else:
     dictionary = OrderedDict
@@ -71,7 +71,7 @@ class JsonDjangoRequest(logging.Filter):
 
     def _jsonify_dict(self, prefix, dct):
         json_obj = dictionary()
-        if sys.version_info < (3, 7):
+        if sys.version_info.major < 3 and sys.version_info.minor < 7:
             dct = OrderedDict(sorted(dct.items(), key=lambda t: t[0]))
         for key, value in dct.items():
             dotted_key = '{}.{}'.format(prefix, key)

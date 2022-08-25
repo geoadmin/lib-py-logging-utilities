@@ -2,10 +2,22 @@ import unittest
 
 from nose2.tools import params
 
-from logging_utilities.formatters.json_formatter import dotted_key_regex
+from logging_utilities.formatters.json_formatter import EnhancedPercentStyle
 
 
 class RegexTests(unittest.TestCase):
+
+    @params(
+        '%(asctime)s',
+        '%(my.dotted.key)s',
+        '%(my.dotted.key)s with constant',
+        'leading constant %(my.dotted.key)s with constant',
+        'constant%(my.dotted.key)sconstant',
+        '%(my.dotted.key)d',
+        '%(my.dotted.key)3.4d',
+    )
+    def test_json_formatter_enhanced_percent_style_regex_match(self, value):
+        self.assertIsNotNone(EnhancedPercentStyle.validation_pattern.search(value))
 
     @params(
         'my.key',
@@ -20,12 +32,7 @@ class RegexTests(unittest.TestCase):
         '_1a._2b._3b',
         'a.b.c.',
         'a1a.b2b.c2c.',
-        'a1a_.b2_b.c_2c.'
-    )
-    def test_json_formatter_dotted_key_regex_match(self, key):
-        self.assertIsNotNone(dotted_key_regex.match(key))
-
-    @params(
+        'a1a_.b2_b.c_2c.',
         'my key.',
         '1.2',
         'This is a text. It contains dot.',
@@ -34,7 +41,9 @@ class RegexTests(unittest.TestCase):
         'my.key-test',
         '1',
         '1.test',
-        '_1.1test'
+        '_1.1test',
+        '%()s',
+        'asd %()s asdf'
     )
-    def test_json_formatter_dotted_key_regex_no_match(self, key):
-        self.assertIsNone(dotted_key_regex.match(key))
+    def test_json_formatter_enhanced_percent_style_regex_not_match(self, value):
+        self.assertIsNone(EnhancedPercentStyle.validation_pattern.search(value))

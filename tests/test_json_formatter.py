@@ -12,7 +12,7 @@ from logging_utilities.filters import ConstAttribute
 from logging_utilities.formatters.json_formatter import JsonFormatter
 
 # From python3.7, dict is ordered
-if sys.version_info >= (3, 7):
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
 else:
     dictionary = OrderedDict
@@ -62,6 +62,20 @@ class BasicJsonFormatterTest(unittest.TestCase):
             )
             handler.setFormatter(formatter)
 
+    def test_string_fmt_param(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(logger, '{"level": "levelname", "message": "message"}')
+            logger.info('Simple message')
+
+        message = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        self.assertDictEqual(
+            message, dictionary([
+                ("level", "INFO"),
+                ("message", "Simple message"),
+            ])
+        )
+
     def test_simple_log(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
@@ -96,6 +110,26 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ("message", "Composed message with extra"),
             ])
         )
+
+    if sys.version_info.major >= 3 and sys.version_info.minor >= 8:
+        # Python version prior to 3.8 do not raise any exception on non existing attribute
+        @params(
+            'non.existing', '%(non_existing)s', '%(non.existing)s', '%(non.existing)s with text'
+        )
+        def test_missing_attribute_raise(self, attribute):
+            with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+                logger = logging.getLogger('test_formatter')
+                self._configure_logger(
+                    logger,
+                    dictionary([
+                        ('level', 'levelname'),
+                        ('non-existing', attribute),
+                        ('message', 'message'),
+                    ]),
+                )
+                with self.assertRaises((ValueError, KeyError)):
+                    logger.info('Simple message')
+            self.assertListEqual(ctx.output, [])
 
     @params(
         (
@@ -339,6 +373,28 @@ class BasicJsonFormatterTest(unittest.TestCase):
             ])
         )
 
+    def test_stack_info(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('levelname', 'levelname'),
+                    ('name', 'name'),
+                    ('message', 'message'),
+                ])
+            )
+            logger.info('Message with stack info', stack_info=True)
+        message = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        self.assertListEqual(list(message.keys()), ['levelname', 'name', 'message', 'stack_info'])
+        self.assertEqual(message['levelname'], 'INFO')
+        self.assertEqual(message['name'], 'test_formatter')
+        self.assertEqual(message['message'], 'Message with stack info')
+        self.assertTrue(
+            message['stack_info'].startswith('Stack (most recent call last):\n'),
+            msg='stack_info do not start with "Stack (most recent call last):\\n"'
+        )
+
     def test_exception(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
@@ -400,10 +456,17 @@ class BasicJsonFormatterTest(unittest.TestCase):
             logger = logging.getLogger('test_formatter')
             self._configure_logger(
                 logger,
-                fmt=dictionary([("level", "levelname"), ("message", "message"),
-                                ("non-existing-attribute", "%(nonExistingAttribute)s"),
-                                ("another-non-existing-attribute", "non_existing.dotted.attribute"),
-                                ("non-existing-attribute-as-constant", 'constant_value')]),
+                fmt=dictionary([
+                    ("level", "levelname"),
+                    ("message", "message"),
+                    ("non-existing-attribute", "%(nonExistingAttribute)s"),
+                    ("2nd-non-existing-attribute", "non_existing.dotted.attribute"),
+                    ("3rd-non-existing-attribute", 'some_var'),
+                    (
+                        "3rd-non-existing-attribute",
+                        'Some random text, 1.2 float. Should not be added.'
+                    ),
+                ]),
                 remove_empty=True,
                 ignore_missing=True
             )
@@ -411,8 +474,7 @@ class BasicJsonFormatterTest(unittest.TestCase):
         self.assertDictEqual(
             json.loads(ctx.output[0], object_pairs_hook=dictionary),
             dictionary([("level", "INFO"),
-                        ("message", "Composed message remove non existing attribute"),
-                        ("non-existing-attribute-as-constant", "constant_value")])
+                        ("message", "Composed message remove non existing attribute")])
         )
 
     def test_ignore_trailing_dot_in_key(self):
@@ -447,6 +509,38 @@ class BasicJsonFormatterTest(unittest.TestCase):
             dictionary([("level", "INFO"),
                         ("message", "Composed message existing dotted key as dict"),
                         ("trailing-dotted-key", dictionary([("a", 12), ("b", "this is b")]))])
+        )
+
+    def test_ignore_double_trailing_dot_in_key(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ("level", "levelname"),
+                    ("message", "message"),
+                    ("trailing-dotted-key", "dotted_key.."),
+                ]),
+                remove_empty=False,
+                ignore_missing=True
+            )
+            logger.info('Composed message %s', 'remove non existing dotted key')
+            logger.info(
+                'Composed message %s',
+                'existing dotted key as dict',
+                extra={"dotted_key": ['a', 'b']}
+            )
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([("level", "INFO"),
+                        ("message", "Composed message remove non existing dotted key"),
+                        ("trailing-dotted-key", [])])
+        )
+        self.assertDictEqual(
+            json.loads(ctx.output[1], object_pairs_hook=dictionary),
+            dictionary([("level", "INFO"),
+                        ("message", "Composed message existing dotted key as dict"),
+                        ("trailing-dotted-key", ['a', 'b'])])
         )
 
     def test_leave_empty(self):
@@ -498,7 +592,8 @@ class BasicJsonFormatterTest(unittest.TestCase):
                     ('level', 'levelname'),
                     ('request', dictionary([('path', 'request.path')])),
                     ('message', 'message'),
-                ])
+                ]),
+                ignore_missing=True
             )
             logger.info(
                 'Composed message %s',
@@ -534,7 +629,8 @@ class BasicJsonFormatterTest(unittest.TestCase):
                     ('level', 'levelname'),
                     ('request', ['request.path', 'request.method']),
                     ('message', 'message'),
-                ])
+                ]),
+                ignore_missing=True
             )
             logger.info(
                 'Composed message %s',
@@ -571,7 +667,8 @@ class BasicJsonFormatterTest(unittest.TestCase):
                     ('request', dictionary([('path', 'request.path')])),
                     ('message', 'message'),
                 ]),
-                remove_empty=True
+                remove_empty=True,
+                ignore_missing=True
             )
             logger.info(
                 'Composed message %s',
@@ -607,7 +704,8 @@ class BasicJsonFormatterTest(unittest.TestCase):
                     ('request', ['request.path', 'request.method']),
                     ('message', 'message'),
                 ]),
-                remove_empty=True
+                remove_empty=True,
+                ignore_missing=True
             )
             logger.info(
                 'Composed message %s',
@@ -633,18 +731,20 @@ class BasicJsonFormatterTest(unittest.TestCase):
             ])
         )
 
-    def test_constant(self):
+    def test_missing_attribute(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
             self._configure_logger(
                 logger,
                 fmt=dictionary([
                     ('level', 'levelname'),
-                    ('1-constant', 'this is a constant'),
-                    ('2-constant', 'my_constant'),
-                    ('3-constant', 'This is a constant with dot.'),
-                    ('4-constant', 'my.constant%()s'),
-                    ('5-constant', 'my.constant.%()s'),
+                    ('1-missing-attr', 'this is a constant'),
+                    ('2-missing-attr', 'my_constant'),
+                    ('3-missing-attr', 'This is a constant with dot.'),
+                    ('4-missing-attr', 'my.constant%()s'),
+                    ('5-missing-attr', 'my.constant.%()s'),
+                    ('6-missing-attr', '%(This is a constant with dot.)s'),
+                    ('7-missing-attr', '%(test.a.)s'),
                     ('my-extra', 'my_extra'),
                     ('message', 'message'),
                 ]),
@@ -661,11 +761,13 @@ class BasicJsonFormatterTest(unittest.TestCase):
             json.loads(ctx.output[0], object_pairs_hook=dictionary),
             dictionary([
                 ("level", "INFO"),
-                ('1-constant', 'this is a constant'),
-                ('2-constant', 'my_constant'),
-                ('3-constant', 'This is a constant with dot.'),
-                ('4-constant', 'my.constant'),
-                ('5-constant', 'my.constant.'),
+                ('1-missing-attr', ''),
+                ('2-missing-attr', ''),
+                ('3-missing-attr', {}),
+                ('4-missing-attr', ''),
+                ('5-missing-attr', ''),
+                ('6-missing-attr', ''),
+                ('7-missing-attr', ''),
                 ("my-extra", "this is an extra"),
                 ("message", "Composed message with extra and constants"),
             ])
@@ -674,12 +776,14 @@ class BasicJsonFormatterTest(unittest.TestCase):
             json.loads(ctx.output[1], object_pairs_hook=dictionary),
             dictionary([
                 ("level", "INFO"),
-                ('1-constant', 'this is a constant'),
-                ('2-constant', 'my_constant'),
-                ('3-constant', 'This is a constant with dot.'),
-                ('4-constant', 'my.constant'),
-                ('5-constant', 'my.constant.'),
-                ("my-extra", "my_extra"),
+                ('1-missing-attr', ''),
+                ('2-missing-attr', ''),
+                ('3-missing-attr', {}),
+                ('4-missing-attr', ''),
+                ('5-missing-attr', ''),
+                ('6-missing-attr', ''),
+                ('7-missing-attr', ''),
+                ("my-extra", ""),
                 ("message", "Composed message without extra"),
             ])
         )
