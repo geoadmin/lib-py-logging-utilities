@@ -112,16 +112,9 @@ package: $(PREP_PACKAGING_TIMESTAMP)
 
 
 .PHONY: publish
-publish: clean-venv clean test package publish-check
-	@echo "Tag and upload package version=$(PACKAGE_VERSION)"
-	@# Check if we use interactive credentials or not
-	@if [ -n "$(PYPI_PASSWORD)" ]; then \
-	    python3 -m twine upload -u $(PYPI_USER) -p $(PYPI_PASSWORD) dist/*; \
-	else \
-	    python3 -m twine upload dist/*; \
-	fi
-	git tag -am $(PACKAGE_VERSION) $(PACKAGE_VERSION)
-	git push origin $(PACKAGE_VERSION)
+publish: clean-all publish-check setup package
+	@echo "Upload package version=$(PACKAGE_VERSION)"
+	$(PYTHON) -m twine upload -u $(PYPI_USER) -p $(PYPI_PASSWORD) dist/*
 
 
 # Clean targets
@@ -173,8 +166,3 @@ $(PREP_PACKAGING_TIMESTAMP): $(TIMESTAMPS)
 publish-check:
 	@echo "Check if publish is allowed"
 	@if [ -n "`git status --porcelain`" ]; then echo "ERROR: Repo is dirty !" >&2; exit 1; fi
-	@# "Check if TAG=${PACKAGE_VERSION} already exits"
-	@if [ -n "`git ls-remote --tags --refs origin refs/tags/${PACKAGE_VERSION}`" ]; then \
-		echo "ERROR: Tag ${PACKAGE_VERSION} already exists on remote" >&2;  \
-		exit 1; \
-	fi
