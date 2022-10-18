@@ -28,6 +28,8 @@ All features can be fully configured from the configuration file.
   - [Developer](#developer)
 - [Ignore missing log record attribute in formatter](#ignore-missing-log-record-attribute-in-formatter)
   - [LogRecordIgnoreMissing](#logrecordignoremissing)
+- [Logging Context](#logging-context)
+  - [Logging Context example with Pyramid](#logging-context-example-with-pyramid)
 - [JSON Formatter](#json-formatter)
   - [Configure JSON Format](#configure-json-format)
   - [JSON Formatter Options](#json-formatter-options)
@@ -210,6 +212,67 @@ My second message - my-default
 ```
 
 :warning: **NOTE that setting the log record factory is a global action that affects every logger and formatter**
+
+## Logging Context
+
+With `set_logging_context()` you can add a thread based context to every log record. This can be quite usefull if
+you want to globally set a context to every log record, for example a Request context in a Pyramid/Django application.
+
+### Logging Context example with Pyramid
+
+In a [Pyramid](https://docs.pylonsproject.org/projects/pyramid/en/2.0-branch/index.html) application it is quite usefull to
+add to every log record the Request context. This can be done as follow:
+
+```python
+# module my_app.logging_tweens
+from logging_utilities.context import set_logging_context
+
+
+def logging_context_tween(handler, registry):
+
+    def _logging_context_tween(request):
+        set_logging_context({
+            "request": {
+                "method": request.method,
+                "path": request.path,
+                "headers": dict(request.headers)
+            }
+        })
+        return handler(request)
+
+    return _logging_context_tween
+
+# MAIN
+import logging
+from wsgiref.simple_server import make_server
+from pyramid.config import Configurator
+from pyramid.response import Response
+
+logging.basicConfig(format="%(message)s - %(context)s")
+
+logger = logging.getLogger(__name__)
+
+def hello_world(request):
+    logger.debug('Request for hello world')
+    return Response('Hello World!')
+
+if __name__ == '__main__':
+    with Configurator() as config:
+        # Register the tween
+        config.add_tween('my_app.logging_tweens.logging_context_tween')
+
+        # Configure the route and view
+        config.add_route('hello', '/')
+        config.add_view(hello_world, route_name='hello')
+        app = config.make_wsgi_app()
+    server = make_server('0.0.0.0', 6543, app)
+    server.serve_forever()
+
+# A GET / request would produce the following log
+'Request for hello world - {"request": {"method": "GET", "path": "/", "headers": {}}}'
+```
+
+For more information on Pyramid Tweens see [Registering Tween](https://docs.pylonsproject.org/projects/pyramid/en/2.0-branch/narr/hooks.html#registering-tweens)
 
 ## JSON Formatter
 

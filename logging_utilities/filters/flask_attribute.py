@@ -38,7 +38,10 @@ class FlaskRequestAttribute(logging.Filter):
                     # is malformed for json data. In this case we don't want the filter to crash
                     # but simply set an empty value
                     if attribute == 'json':
-                        value = str(request.data)
+                        if isinstance(request.data, bytes):
+                            value = request.data.decode('utf-8')
+                        else:
+                            value = str(request.data)
                     else:
                         raise
                 if isinstance(value, (ImmutableDict, ImmutableMultiDict, MultiDict)):

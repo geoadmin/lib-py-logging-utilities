@@ -5,6 +5,7 @@ import re
 import sys
 import warnings
 from collections import OrderedDict
+from collections.abc import Mapping
 from collections.abc import MutableMapping
 from functools import partial
 from logging import BASIC_FORMAT
@@ -292,7 +293,7 @@ class JsonFormatter(logging.Formatter):
             default_value = dictionary()
 
         def get_dotted_key(dct, dotted_key):
-            if not isinstance(dct, (dict)):
+            if not isinstance(dct, (Mapping)):
                 raise ValueError(
                     'Cannot get dotted key "{}" from "{}": '.format(dotted_key, dct) +
                     'is not a record or dictionary'

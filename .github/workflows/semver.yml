@@ -1,0 +1,26 @@
+name: on-push
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+
+jobs:
+  release:
+    uses: geoadmin/.github/.github/workflows/semver-release.yml@master
+
+  publish:
+    needs: release
+    if: ${{ github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: '10'
+
+      - name: Build and Publish Package on PyPI
+        run: make publish
+        env:
+          PYPI_USER: ${{ secrets.PYPI_USER }}
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}

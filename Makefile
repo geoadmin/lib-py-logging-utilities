@@ -60,7 +60,8 @@ help:
 	@echo "- publish            Tag and publish package to PyPI"
 	@echo -e " \033[1mCLEANING TARGETS\033[0m "
 	@echo "- clean              Clean genereated files"
-	@echo "- clean_venv         Clean python venv"
+	@echo "- clean-venv         Clean python venv"
+	@echo "- clean-all          Clean everything"
 
 
 # Build targets. Calling setup is all that is needed for the local files to be installed as needed.
@@ -107,32 +108,25 @@ test: $(DEV_REQUIREMENTS_TIMESTAMP)
 
 .PHONY: package
 package: $(PREP_PACKAGING_TIMESTAMP)
-	python3 setup.py sdist bdist_wheel
+	$(PYTHON) -m build
 
 
 .PHONY: publish
-publish: clean_venv clean test package publish-check
-	@echo "Tag and upload package version=$(PACKAGE_VERSION)"
-	@# Check if we use interactive credentials or not
-	@if [ -n "$(PYPI_PASSWORD)" ]; then \
-	    python3 -m twine upload -u $(PYPI_USER) -p $(PYPI_PASSWORD) dist/*; \
-	else \
-	    python3 -m twine upload dist/*; \
-	fi
-	git tag -am $(PACKAGE_VERSION) $(PACKAGE_VERSION)
-	git push origin $(PACKAGE_VERSION)
+publish: clean-all publish-check setup package
+	@echo "Upload package version=$(PACKAGE_VERSION)"
+	$(PYTHON) -m twine upload -u $(PYPI_USER) -p $(PYPI_PASSWORD) dist/*
 
 
 # Clean targets
 
-.PHONY: clean_venv
-clean_venv:
+.PHONY: clean-venv
+clean-venv:
 	if [ -e $(VENV)/bin/deactivate ]; then $(VENV)/deactivate; fi
 	rm -rf $(VENV)
 
 
 .PHONY: clean
-clean: clean_venv
+clean:
 	@# clean python cache files
 	find . -name __pycache__ -type d -print0 | xargs -I {} -0 rm -rf "{}"
 	rm -rf $(PYTHON_LOCAL_DIR)
@@ -141,6 +135,11 @@ clean: clean_venv
 	rm -rf dist
 	rm -rf build
 	rm -rf *.egg-info
+	rm -f .coverage
+
+
+.PHONY: clean-all
+clean-all: clean clean-venv
 
 
 # Actual builds targets with dependencies
@@ -167,8 +166,3 @@ $(PREP_PACKAGING_TIMESTAMP): $(TIMESTAMPS)
 publish-check:
 	@echo "Check if publish is allowed"
 	@if [ -n "`git status --porcelain`" ]; then echo "ERROR: Repo is dirty !" >&2; exit 1; fi
-	@# "Check if TAG=${PACKAGE_VERSION} already exits"
-	@if [ -n "`git ls-remote --tags --refs origin refs/tags/${PACKAGE_VERSION}`" ]; then \
-		echo "ERROR: Tag ${PACKAGE_VERSION} already exists on remote" >&2;  \
-		exit 1; \
-	fi
