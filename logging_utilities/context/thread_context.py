@@ -56,8 +56,8 @@ class ThreadMappingContext(BaseContext):
     def set(self, key, value):
         self.__local.data[key] = value
 
-    def delete(self, key: str):
-        self.__delitem__(key)
+    def delete(self, key):
+        del self.__local.data[key]
 
     def clear(self):
         self.__local.data = {}

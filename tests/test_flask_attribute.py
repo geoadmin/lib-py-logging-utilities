@@ -89,11 +89,11 @@ class FlaskAttributeTest(unittest.TestCase):
             ctx.output,
             [
                 # pylint: disable=line-too-long
-                'INFO:Simple message:http://localhost/make_report/2017:None:',
-                'INFO:Composed message: this is a composed message:http://localhost/make_report/2017:None:',
-                'INFO:Composed message with extra:http://localhost/make_report/2017:None:',
-                'INFO:Simple message:http://localhost/make_report/2017:None:',
-                "INFO:Simple message:http://localhost/make_report/2017:b'non json data':",
+                'INFO:Simple message:http://localhost/make_report/2017::',
+                'INFO:Composed message: this is a composed message:http://localhost/make_report/2017::',
+                'INFO:Composed message with extra:http://localhost/make_report/2017::',
+                'INFO:Simple message:http://localhost/make_report/2017::',
+                "INFO:Simple message:http://localhost/make_report/2017:non json data:",
                 'INFO:Simple message:http://localhost/make_report/2017:{}:',
                 "INFO:Simple message:http://localhost/make_report/2017:{'jsonData': 'this is a json data'}:",
             ]
@@ -121,11 +121,11 @@ class FlaskAttributeTest(unittest.TestCase):
             ctx.output,
             [
                 # pylint: disable=line-too-long
-                'INFO:Simple message:http://localhost/make_report/2017?param1=value1:None:param1=value1',
-                'INFO:Composed message: this is a composed message:http://localhost/make_report/2017?param1=value1:None:param1=value1',
-                'INFO:Composed message with extra:http://localhost/make_report/2017?param1=value1:None:param1=value1',
-                'INFO:Simple message:http://localhost/make_report/2017?param1=value1&param2=value2:None:param1=value1&param2=value2',
-                'INFO:Simple message:http://localhost/make_report/2017?param1=This%20a%20string%20%3F:None:param1=This%20a%20string%20%3F',
+                'INFO:Simple message:http://localhost/make_report/2017?param1=value1::param1=value1',
+                'INFO:Composed message: this is a composed message:http://localhost/make_report/2017?param1=value1::param1=value1',
+                'INFO:Composed message with extra:http://localhost/make_report/2017?param1=value1::param1=value1',
+                'INFO:Simple message:http://localhost/make_report/2017?param1=value1&param2=value2::param1=value1&param2=value2',
+                'INFO:Simple message:http://localhost/make_report/2017?param1=This%20a%20string%20%3F::param1=This%20a%20string%20%3F',
             ]
         )
 
