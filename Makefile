@@ -21,7 +21,6 @@ DEV_REQUIREMENTS_TIMESTAMP = $(VENV)/.dev-requirements.timestamp
 
 # general targets timestamps
 TIMESTAMPS = .timestamps
-PREP_PACKAGING_TIMESTAMP = $(TIMESTAMPS)/.prep-packaging.timestamp
 
 # Find all python files that are not inside a hidden directory (directory starting with .)
 PYTHON_FILES := $(shell find ./* -type d \( -path ./build -o -path ./dist \) -prune -false -o -type f -name "*.py" -print)
@@ -107,7 +106,7 @@ test: $(DEV_REQUIREMENTS_TIMESTAMP)
 # Packaging target
 
 .PHONY: package
-package: $(PREP_PACKAGING_TIMESTAMP)
+package: $(DEV_REQUIREMENTS_TIMESTAMP)
 	$(PYTHON) -m build
 
 
@@ -156,11 +155,6 @@ $(VENV_TIMESTAMP):
 $(DEV_REQUIREMENTS_TIMESTAMP): $(VENV_TIMESTAMP) $(DEV_REQUIREMENTS)
 	$(PIP) install -r $(DEV_REQUIREMENTS)
 	@touch $(DEV_REQUIREMENTS_TIMESTAMP)
-
-
-$(PREP_PACKAGING_TIMESTAMP): $(TIMESTAMPS)
-	python3 -m pip install --user --upgrade setuptools wheel twine
-	@touch $(PREP_PACKAGING_TIMESTAMP)
 
 
 publish-check:

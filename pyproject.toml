@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "logging-utilities"
 requires-python = ">=3.0"
 description = """\
-A collection of useful logging formatters and filters.
+A collection of useful logging formatters and filters.\
 Logging Context, JSON Formatter, Extra Formatter, ISO Time Filter, Flask Filter, Django Filter, ...\
 """
 readme = "README.md"
