@@ -26,3 +26,6 @@ toml==0.10.2
 tomli==2.0.1
 Werkzeug==2.2.2
 wrapt==1.12.1
+## The following requirements were added by pip freeze:
+Deprecated==1.2.13
+setuptools-git-versioning==1.12.0

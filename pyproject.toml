@@ -1,10 +1,9 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "build", "setuptools-git-versioning<2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "logging-utilities"
-version = "3.1.0"
 requires-python = ">=3.0"
 description = """\
 A collection of useful logging formatters and filters.
@@ -30,6 +29,7 @@ classifiers = [
         "Framework :: Flask"
     ]
 keywords = ["context", "json", "logging", "flask", "django", "pyramid", "format"]
+dynamic = ["version"]
 
 [urls]
 Homepage = "https://github.com/geoadmin/lib-py-logging-utilities"
@@ -39,3 +39,8 @@ Tracker = "https://github.com/geoadmin/lib-py-logging-utilities/issues"
 
 [tool.setuptools.packages.find]
 include = ["logging_utilities*"]
+
+[tool.setuptools-git-versioning]
+enabled = true
+dev_template = "{tag}+git.{sha}"
+dirty_template = "{tag}+git.{sha}.dirty"
