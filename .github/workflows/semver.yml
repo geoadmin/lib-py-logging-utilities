@@ -22,5 +22,5 @@ jobs:
       - name: Build and Publish Package on PyPI
         run: make publish
         env:
-          PYPI_USER: ${{ secrets.PYPI_USER }}
-          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          TWINE_USERNAME: ${{ secrets.PYPI_USER }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}

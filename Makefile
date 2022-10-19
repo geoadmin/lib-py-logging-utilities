@@ -11,10 +11,6 @@ DEV_REQUIREMENTS = $(CURRENT_DIR)/dev_requirements.txt
 TEST_REPORT_DIR ?= $(CURRENT_DIR)/tests/report
 TEST_REPORT_FILE ?= nose2-junit.xml
 
-# PyPI credentials
-PYPI_USER ?=
-PYPI_PASSWORD ?=
-
 # venv targets timestamps
 VENV_TIMESTAMP = $(VENV)/.timestamp
 DEV_REQUIREMENTS_TIMESTAMP = $(VENV)/.dev-requirements.timestamp
@@ -113,7 +109,7 @@ package: $(DEV_REQUIREMENTS_TIMESTAMP)
 .PHONY: publish
 publish: clean-all publish-check setup package
 	@echo "Upload package version=$(PACKAGE_VERSION)"
-	$(PYTHON) -m twine upload -u $(PYPI_USER) -p $(PYPI_PASSWORD) dist/*
+	$(PYTHON) -m twine upload dist/*
 
 
 # Clean targets
