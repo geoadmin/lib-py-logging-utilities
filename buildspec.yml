@@ -24,8 +24,6 @@ phases:
       - make ci-check-format
       - echo "=== Linting ====================================================="
       - make lint
-  build:
-    commands:
       - echo "================================================================="
       - echo "Setting up dev mode with python version $(python --version)..."
       - pip install --upgrade pip
@@ -47,3 +45,7 @@ phases:
       - python3.9 -m pip install -e .
       - echo "Running nose tests..."
       - python3.9 -m nose2 -v -s tests/
+  build:
+    commands:
+      - echo "=== Build package ==============================================="
+      - make package

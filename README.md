@@ -78,22 +78,12 @@ pip install logging-utilities
 
 ## Release and Publish
 
-Only owners are allowed to publish a new version to PyPI. To publish a new version follow the procedure below:
+New release and publish on PyPI is done automatically upon PR merge into `master` branch. For bug fixes and small new features,
+PR can be directly open on `master`. Then the PR title define the version bump as follow:
 
-1. Increase the `VERSION` in `logging_utilities/__init__.py`
-    - Major version for outbreak changes in the user interface (no backward compatibility)
-    - Minor version for new features
-    - Patch version for bug fixes
-    - For alpha version append `alpha1` to `VERSION`
-1. Commit and push the changes to `develop` branch
-1. Merge `develop` to  `master`
-1. From `master` branch enter
-
-    ```shell
-    summon -p gopass --up make publish
-    ```
-
-**NOTE**: this requires to have `summon`, `gopass` and the correct `secrets.yml` file in a parent folder.
+- PR title and/or commit message contains `#major` => major version is bumped
+- PR title and/or commit message contains `#patch` or head branch name starts with `bug-|hotfix-|bugfix-` => patch version is bumped
+- Otherwise by default the minor version is bumped
 
 ## Contribution
 
