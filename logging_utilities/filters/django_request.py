@@ -21,16 +21,20 @@ def _pattern(text):
 class JsonDjangoRequest(logging.Filter):
     """Convert Django request to a json object
 
-    The django framework adds sometimes a request to the logs extra (HttpRequest or socket object).
-    This filter recursively converts this request object to a python dictionary that can be dumped
-    into a json string.
-    This is useful for example if you want to use this request with the JSON formatter.
+    This filter recursively converts a django HttpRequest object to a python dictionary that can be dumped
+    into a json string. This is useful for example if you want to log an extra parameter of type
+    HttpRequest with the JSON formatter. If the specified attribute is not of type HttpRequest, it
+    will simply be ignored and passed though.
 
     Additionally the attributes of the request that needs to be jsonify can be configured using the
     `include_keys` and/or `exclude_keys` parameters.
+
+    The django framework adds already sometimes a request to the logs extra (HttpRequest or socket
+    object). So if you use the default attribute name "request" for this filter, beware that you
+    will need to handle the case where the attribute is of type 'socket' separately.
     """
 
-    def __init__(self, include_keys=None, exclude_keys=None):
+    def __init__(self, include_keys=None, exclude_keys=None, attr_name='request'):
         """Initialize the filter
 
         Args:
@@ -42,13 +46,19 @@ class JsonDjangoRequest(logging.Filter):
                 All request attributes that match any of the dotted keys of the list will not be
                 added to the jsonify of the record.request. NOTE this has precedence to include_keys
                 which means that if a key is in both list, then it is not added.
+            attr_name: str
+                The name of the attribute that stores the HttpRequest object. The default is 'request',
+                as Django already sometimes logs a HttpRequest under this attribute. Beware however
+                that Django sometimes also logs an object of type 'socket' under this attribute, which
+                could cause problems if you don't filter it away correctly.
         """
         self.include_keys = include_keys
         self.exclude_keys = exclude_keys
+        self.attr_name = attr_name
         super().__init__()
 
     def filter(self, record):
-        if not hasattr(record, 'request'):
+        if not hasattr(record, self.attr_name):
             return True
 
         self._jsonify_request(record)
@@ -56,18 +66,16 @@ class JsonDjangoRequest(logging.Filter):
         return True
 
     def _jsonify_request(self, record):
-        if isinstance(record.request, HttpRequest) and hasattr(record.request, '__dict__'):
-            request = self._jsonify_dict('request', record.request.__dict__)
-            if self._add_key('request.headers', 'headers'):
+        orig_request = getattr(record, self.attr_name)
+        if isinstance(orig_request, HttpRequest) and hasattr(orig_request, '__dict__'):
+            request = self._jsonify_dict(self.attr_name, orig_request.__dict__)
+            if self._add_key(self.attr_name + '.headers', 'headers'):
                 # HttpRequest has a special headers property that is cached and is not always in
                 # record.request.__dict__
-                request['headers'] = self._jsonify_dict('request.headers', record.request.headers)
-            setattr(record, 'request', request)
-        elif not isinstance(record.request, (str, int, float, list, dict)):
-            # Django sets also in some log message extra={'request': socket.socket()} in this case
-            # we simply stringify it
-            request = str(record.request)
-            setattr(record, 'request', request)
+                request['headers'] = self._jsonify_dict(
+                    self.attr_name + '.headers', orig_request.headers
+                )
+            setattr(record, self.attr_name, request)
 
     def _jsonify_dict(self, prefix, dct):
         json_obj = dictionary()

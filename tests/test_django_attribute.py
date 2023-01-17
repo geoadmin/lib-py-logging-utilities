@@ -28,17 +28,21 @@ class RecordDjangoAttributesTest(unittest.TestCase):
         self.factory = RequestFactory()
 
     @classmethod
-    def _configure_django_filter(cls, _logger, include_keys=None, exclude_keys=None):
+    def _configure_django_filter(
+        cls, _logger, include_keys=None, exclude_keys=None, attr_name='request'
+    ):
         _logger.setLevel(logging.DEBUG)
 
         for handler in _logger.handlers:
-            django_filter = JsonDjangoRequest(include_keys=include_keys, exclude_keys=exclude_keys)
+            django_filter = JsonDjangoRequest(
+                include_keys=include_keys, exclude_keys=exclude_keys, attr_name=attr_name
+            )
             handler.addFilter(django_filter)
             formatter = JsonFormatter(
                 dictionary([
                     ('level', 'levelname'),
                     ('message', 'message'),
-                    ('request', 'request'),
+                    ('request', attr_name),
                 ]),
                 remove_empty=True
             )
@@ -93,13 +97,18 @@ class RecordDjangoAttributesTest(unittest.TestCase):
             self._configure_django_filter(
                 test_logger,
                 include_keys=[
-                    'request.META.REQUEST_METHOD', 'request.META.SERVER_NAME', 'request.environ'
+                    'my_http_request.META.REQUEST_METHOD',
+                    'my_http_request.META.SERVER_NAME',
+                    'my_http_request.environ'
                 ],
-                exclude_keys=['request.META.SERVER_NAME', 'request.environ.wsgi']
+                exclude_keys=['my_http_request.META.SERVER_NAME', 'my_http_request.environ.wsgi'],
+                attr_name='my_http_request'
             )
-            test_logger.info('Simple message', extra={'request': request})
+            test_logger.info('Simple message', extra={'my_http_request': request})
             test_logger.info(
-                'Composed message: %s', 'this is a composed message', extra={'request': request}
+                'Composed message: %s',
+                'this is a composed message',
+                extra={'my_http_request': request}
             )
         message1 = json.loads(ctx.output[0], object_pairs_hook=dictionary)
         message2 = json.loads(ctx.output[1], object_pairs_hook=dictionary)
