@@ -21,10 +21,10 @@ def _pattern(text):
 class JsonDjangoRequest(logging.Filter):
     """Convert Django request to a json object
 
-    This filter recursively converts a django HttpRequest object to a python dictionary that can be dumped
-    into a json string. This is useful for example if you want to log an extra parameter of type
-    HttpRequest with the JSON formatter. If the specified attribute is not of type HttpRequest, it
-    will simply be ignored and passed though.
+    This filter recursively converts a django HttpRequest object to a python dictionary that can be
+    dumped into a json string. This is useful for example if you want to log an extra parameter of
+    type HttpRequest with the JSON formatter. If the specified attribute is not of type HttpRequest,
+    it will simply be ignored and passed though.
 
     Additionally the attributes of the request that needs to be jsonify can be configured using the
     `include_keys` and/or `exclude_keys` parameters.
@@ -47,10 +47,10 @@ class JsonDjangoRequest(logging.Filter):
                 added to the jsonify of the record.request. NOTE this has precedence to include_keys
                 which means that if a key is in both list, then it is not added.
             attr_name: str
-                The name of the attribute that stores the HttpRequest object. The default is 'request',
-                as Django already sometimes logs a HttpRequest under this attribute. Beware however
-                that Django sometimes also logs an object of type 'socket' under this attribute, which
-                could cause problems if you don't filter it away correctly.
+                The name of the attribute that stores the HttpRequest object. The default is
+                'request', as Django already sometimes logs a HttpRequest under this attribute.
+                Beware however that Django sometimes also logs an object of type 'socket' under this
+                attribute, which could cause problems if you don't filter it away correctly.
         """
         self.include_keys = include_keys
         self.exclude_keys = exclude_keys
