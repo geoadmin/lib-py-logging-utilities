@@ -5,9 +5,13 @@ def is_instance(attr, of_type):
     if isinstance(of_type, str):
         attr_class = type(attr)
         if '.' in of_type:
-            return attr_class.__module__ + '.' + attr_class.__name__ == of_type
+            return attr_class.__module__ + '.' + attr_class.__name__ == of_type or of_type in [
+                c.__module__ + '.' + c.__name__ for c in attr_class.__bases__
+            ]
         else:
-            return attr_class.__name__ == of_type
+            return attr_class.__name__ == of_type or of_type in [
+                c.__name__ for c in attr_class.__bases__
+            ]
     return isinstance(attr, of_type)
 
 

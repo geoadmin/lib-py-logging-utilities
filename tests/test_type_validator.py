@@ -12,6 +12,12 @@ class TestObject:
         return 'Test Object'
 
 
+class TestSubobject(TestObject):
+
+    def __str__(self):
+        return 'Test Subobject'
+
+
 class TypeValidatorTest(unittest.TestCase):
 
     def setUp(self):
@@ -43,14 +49,22 @@ class TypeValidatorTest(unittest.TestCase):
                     'request': 'dict',
                     'unexistent': 'str',
                     'entry': bool,
-                    'abc': ['bool', str, 'int'],
-                    'def': 'TestObject'
+                    'abc': ['bool', str, 'int', 'TestSubobject'],
+                    'def': 'TestObject',
+                    'ghi': 'TestObject',
+                    'ghi2': 'tests.test_type_validator.TestObject',
+                    'jkl': ['bool', str, 'int', 'TestSubobject'],
+                    'mno': 'TestSubobject'
                 })
             ],
             extra_dict={
                 'entry': 'hey',  #no match
                 'abc': TestObject(),  #no match
                 'def': TestObject(),  #match
+                'ghi': TestSubobject(),  #match (checks that super class detection works)
+                'ghi2': TestSubobject(),  #match
+                'jkl': TestSubobject(),  #match
+                'mno': TestObject(),  #no match
                 'request': {  #match
                     'path': '/my/path', 'method': 'GET', 'comment': TestObject()
                 }
@@ -61,7 +75,10 @@ class TypeValidatorTest(unittest.TestCase):
                     "method": "GET",
                     "comment": "Test Object"  #str() serializer is used if extra is not serializable
                 },
-                'def': 'Test Object'
+                'def': 'Test Object',
+                'ghi': 'Test Subobject',
+                'ghi2': 'Test Subobject',
+                'jkl': 'Test Subobject',
             }
         )
 
