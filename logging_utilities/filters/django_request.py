@@ -24,17 +24,18 @@ class JsonDjangoRequest(logging.Filter):
     This filter recursively converts a django HttpRequest object to a python dictionary that can be
     dumped into a json string. This is useful for example if you want to log an extra parameter of
     type HttpRequest with the JSON formatter. If the specified attribute is not of type HttpRequest,
-    it will simply be ignored and passed though.
+    it will simply be ignored and passed through.
 
     Additionally the attributes of the request that needs to be jsonify can be configured using the
     `include_keys` and/or `exclude_keys` parameters.
 
-    The django framework adds already sometimes a request to the logs extra (HttpRequest or socket
-    object). So if you use the default attribute name "request" for this filter, beware that you
-    will need to handle the case where the attribute is of type 'socket' separately.
+    The django framework adds sometimes an HttpRequest or socket object under "record.request" when
+    logging. So if you decide to use the attribute name "request" for this filter, beware that you
+    will need to handle the case where the attribute is of type 'socket' separately, for example by
+    filtering it out using the attribute type filter. (see example in README)
     """
 
-    def __init__(self, include_keys=None, exclude_keys=None, attr_name='request'):
+    def __init__(self, include_keys=None, exclude_keys=None, attr_name='http_request'):
         """Initialize the filter
 
         Args:
@@ -48,9 +49,10 @@ class JsonDjangoRequest(logging.Filter):
                 which means that if a key is in both list, then it is not added.
             attr_name: str
                 The name of the attribute that stores the HttpRequest object. The default is
-                'request', as Django already sometimes logs a HttpRequest under this attribute.
-                Beware however that Django sometimes also logs an object of type 'socket' under this
-                attribute, which could cause problems if you don't filter it away correctly.
+                'http_request'.
+                (Note that django sometimes stores an "HttpRequest" under the attribute "request".
+                This is however not the default as django also stores other types of objects under
+                this attribute name.)
         """
         self.include_keys = include_keys
         self.exclude_keys = exclude_keys

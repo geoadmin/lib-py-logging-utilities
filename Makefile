@@ -21,7 +21,7 @@ TIMESTAMPS = .timestamps
 # Find all python files that are not inside a hidden directory (directory starting with .)
 PYTHON_FILES := $(shell find ./* -type d \( -path ./build -o -path ./dist \) -prune -false -o -type f -name "*.py" -print)
 
-PYTHON_VERSION ?= 3.7
+PYTHON_VERSION ?= 3
 SYSTEM_PYTHON := python$(PYTHON_VERSION)
 
 # Commands

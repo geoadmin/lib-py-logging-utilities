@@ -29,7 +29,7 @@ class RecordDjangoAttributesTest(unittest.TestCase):
 
     @classmethod
     def _configure_django_filter(
-        cls, _logger, include_keys=None, exclude_keys=None, attr_name='request'
+        cls, _logger, include_keys=None, exclude_keys=None, attr_name='http_request'
     ):
         _logger.setLevel(logging.DEBUG)
 
@@ -174,7 +174,8 @@ class RecordDjangoAttributesTest(unittest.TestCase):
                 include_keys=[
                     'request.META.REQUEST_METHOD', 'request.META.SERVER_NAME', 'request.environ'
                 ],
-                exclude_keys=['request.META.SERVER_NAME', 'request.environ.wsgi']
+                exclude_keys=['request.META.SERVER_NAME', 'request.environ.wsgi'],
+                attr_name='request'
             )
             for request in requests:
                 test_logger.info('Simple message', extra={'request': request})

@@ -2,7 +2,8 @@ import json
 import logging
 import unittest
 
-from logging_utilities.filters.type_validator import TypeValidator
+from logging_utilities.filters.attr_type_filter import AttrTypeFilter
+from logging_utilities.filters.attr_type_filter import is_instance
 from logging_utilities.formatters.json_formatter import JsonFormatter
 
 
@@ -18,7 +19,31 @@ class TestSubobject(TestObject):
         return 'Test Subobject'
 
 
-class TypeValidatorTest(unittest.TestCase):
+class IsInstanceTest(unittest.TestCase):
+
+    def test_pass_types(self):
+        self.assertTrue(is_instance(TestObject(), TestObject))
+        self.assertFalse(is_instance(TestObject(), TestSubobject))
+        self.assertTrue(is_instance(TestSubobject(), TestObject))
+        self.assertTrue(is_instance(TestSubobject(), TestSubobject))
+        self.assertFalse(is_instance(TestSubobject(), str))
+
+    def test_pass_dotless_strings(self):
+        self.assertTrue(is_instance(TestObject(), 'TestObject'))
+        self.assertFalse(is_instance(TestObject(), 'TestSubobject'))
+        self.assertTrue(is_instance(TestSubobject(), 'TestObject'))
+        self.assertTrue(is_instance(TestSubobject(), 'TestSubobject'))
+        self.assertFalse(is_instance(TestSubobject(), 'str'))
+
+    def test_pass_dotted_strings(self):
+        self.assertTrue(is_instance(TestObject(), 'tests.test_attr_type_filter.TestObject'))
+        self.assertFalse(is_instance(TestObject(), 'tests.test_attr_type_filter.TestSubobject'))
+        self.assertTrue(is_instance(TestSubobject(), 'tests.test_attr_type_filter.TestObject'))
+        self.assertTrue(is_instance(TestSubobject(), 'tests.test_attr_type_filter.TestSubobject'))
+        self.assertFalse(is_instance(TestSubobject(), 'builtins.str'))
+
+
+class AttrTypeFilterTest(unittest.TestCase):
 
     def setUp(self):
         self.logger = logging.getLogger('test_formatter')
@@ -45,14 +70,14 @@ class TypeValidatorTest(unittest.TestCase):
     def test_include_filter(self):
         self.log_and_assert(
             type_validators=[
-                TypeValidator({
+                AttrTypeFilter({
                     'request': 'dict',
                     'unexistent': 'str',
                     'entry': bool,
                     'abc': ['bool', str, 'int', 'TestSubobject'],
                     'def': 'TestObject',
                     'ghi': 'TestObject',
-                    'ghi2': 'tests.test_type_validator.TestObject',
+                    'ghi2': 'tests.test_attr_type_filter.TestObject',
                     'jkl': ['bool', str, 'int', 'TestSubobject'],
                     'mno': 'TestSubobject'
                 })
@@ -85,7 +110,7 @@ class TypeValidatorTest(unittest.TestCase):
     def test_exclude_filter(self):
         self.log_and_assert(
             type_validators=[
-                TypeValidator(
+                AttrTypeFilter(
                     is_blacklist=True,
                     typecheck_list={
                         'request': 'dict',
@@ -110,14 +135,14 @@ class TypeValidatorTest(unittest.TestCase):
     def test_include_and_exclude_filter(self):
         self.log_and_assert(
             type_validators=[
-                TypeValidator({
+                AttrTypeFilter({
                     'entry': 'bool',
                     'entry3': 'int',
                     'request': 'builtins.dict',
-                    'abc': 'tests.test_type_validator.TestObject',
+                    'abc': 'tests.test_attr_type_filter.TestObject',
                     'unexistent': 'str',
                 }),
-                TypeValidator(
+                AttrTypeFilter(
                     is_blacklist=True,
                     typecheck_list={
                         'entry2': str,

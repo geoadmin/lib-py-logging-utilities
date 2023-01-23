@@ -114,7 +114,6 @@ class JsonFormatter(logging.Formatter):
         fmt=None,
         datefmt=None,
         style='%',
-        *,
         add_always_extra=False,
         filter_attributes=None,
         remove_empty=False,
