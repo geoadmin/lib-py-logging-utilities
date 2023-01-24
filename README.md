@@ -44,6 +44,9 @@ All features can be fully configured from the configuration file.
   - [Usage](#usage)
   - [Django Request Filter Constructor](#django-request-filter-constructor)
   - [Django Request Config Example](#django-request-config-example)
+- [Filter out LogRecord attributes based on their types](#filter-out-logrecord-attributes-based-on-their-types)
+  - [Attribute Type Filter Constructor](#attribute-type-filter-constructor)
+  - [Attribute Type Filter Config Example](#attribute-type-filter-config-example)
 - [ISO Time with Timezone](#iso-time-with-timezone)
   - [ISO Time Filter Constructor](#iso-time-filter-constructor)
   - [ISO Time Config Example](#iso-time-config-example)
@@ -62,6 +65,7 @@ All features can be fully configured from the configuration file.
   - [Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-7-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
   - [Case 8. Add Specific Log Extra to the Standard Formatter](#case-8-add-specific-log-extra-to-the-standard-formatter)
 - [Breaking Changes](#breaking-changes)
+  - [Version 4.x.x Breaking Changes](#version-4xx-breaking-changes)
   - [Version 3.x.x Breaking Changes](#version-3xx-breaking-changes)
   - [Version 2.x.x Breaking Changes](#version-2xx-breaking-changes)
 - [Credits](#credits)
@@ -460,24 +464,30 @@ handlers:
 
 ## Jsonify Django Request
 
-If you want to log the [Django](https://www.djangoproject.com/) [HttpRequest](https://docs.djangoproject.com/en/3.1/ref/request-response/#httprequest-objects) object using the [JSON Formatter](#json-formatter), this filter is for made for you. It converts the `record.request` attribute to a valid json object or a string if the attribute is not an `HttpRequest` instance. It is also useful when using Django with the JSON Formatter because Django adds in some of its logs either an HttpRequest object to the log extra or a socket object.
+If you want to log the [Django](https://www.djangoproject.com/) [HttpRequest](https://docs.djangoproject.com/en/3.1/ref/request-response/#httprequest-objects) object using the [JSON Formatter](#json-formatter), this filter is for made for you. It converts the `record.http_request` attribute (or the attribute specified by `attr_key` in the constructor) to a valid json object if it is of type `HttpRequest`.
 
 The `HttpRequest` attributes that are converted can be configured using the `include_keys` and/or `exclude_keys` filter parameters. This can be useful if you want to limit the log data, for example if you don't want to log Authentication headers.
+
+:warning: The django framework adds sometimes an HttpRequest or socket object under `record.request` when
+logging. So if you decide to use the attribute name `request` for this filter, beware that you
+will need to handle the case where the attribute is of type `socket` separately, for example by
+filtering it out using the attribute type filter. (see example [Filter out LogRecord attributes based on their types](#filter-out-logrecord-attributes-based-on-their-types))
 
 ### Usage
 
 Add the filter to the log handler and then add simply the `HttpRequest` to the log extra as follow:
 
 ```python
-logger.info('My message', extra={'request': request})
+logger.info('My message', extra={'http_request': request})
 ```
 
 ### Django Request Filter Constructor
 
 | Parameter      | Type | Default | Description                                    |
 |----------------|------|---------|------------------------------------------------|
-| `include_keys` | list | None    | All request attributes that match any of the dotted keys of the list will be jsonify in the `record.request`. When `None` then all attributes are added (default behavior). |
-| `exclude_keys` | list | None    | All request attributes that match any of the dotted keys of the list will not be added to the jsonify of the `record.request`. **NOTE** this has precedence to `include_keys` which means that if a key is in both list, then it is not added. |
+| `include_keys` | list | None    | All request attributes that match any of the dotted keys of the list will be added to the jsonifiable object. When `None` then all attributes are added (default behavior). |
+| `exclude_keys` | list | None    | All request attributes that match any of the dotted keys of the list will not be added to the jsonifiable object. **NOTE** this has precedence to `include_keys` which means that if a key is in both lists, then it is not added. |
+|  `attr_key`    | str  | `http_request` | The name of the attribute that stores the HttpRequest object. It will be replaced in place by a jsonifiable dict representing this object. (Note that django sometimes stores an `HttpRequest` under `attr_key: request`. This is however not the default as django also stores other types of objects under this attribute name.)
 
 ### Django Request Config Example
 
@@ -485,16 +495,45 @@ logger.info('My message', extra={'request': request})
 filters:
   django:
     (): logging_utilities.filters.django_request.JsonDjangoRequest
+    attr_key: 'http_request' # This is the default, so it can be omitted
     include_keys:
-      - request.META.REQUEST_METHOD
-      - request.META.SERVER_NAME
-      - request.environ
+      - http_request.META.REQUEST_METHOD
+      - http_request.META.SERVER_NAME
+      - http_request.environ
     exclude_keys:
-      - request.META.SERVER_NAME
-      - request.environ.wsgi
+      - http_request.META.SERVER_NAME
+      - http_request.environ.wsgi
 ```
 
 **NOTE**: `JsonDjangoRequest` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
+
+## Filter out LogRecord attributes based on their types
+
+If different libraries or different parts of your code log different object types under the same
+logRecord extra attribute, you can use this filter to keep only some of them (whitelist mode) or filter out
+some of them (blacklist mode).
+
+### Attribute Type Filter Constructor
+
+| Parameter       |             Type                    | Default | Description                 |
+|-----------------|-------------------------------------|---------|-----------------------------|
+|`typecheck_list` | dict(key, type\|list of types)| None   | A dictionary that maps keys to a type or a list of types. By default, it will only keep a parameter matching a key if the types match or if any of the types in the list match (white list). If in black list mode, it will only keep a parameter if the types don't match. Parameters not appearing in the dict will be ignored and passed though regardless of the mode (whitelist or blacklist).
+| `is_blacklist`  | bool                                | false   | Whether the list passed should be a blacklist or a whitelist. To use both, simply include this filter two times, one time with this parameter set true and one time with this parameter set false.
+
+### Attribute Type Filter Config Example
+
+```yaml
+filters:
+  type_filter:
+    (): logging_utilities.filters.attr_type_filter.AttrTypeFilter
+    is_blacklist: False # Default value is false, so this could be left out
+    typecheck_list:
+      # For each attribute listed, one type or a list of types can be specified
+      request: # can only be a toplevel attribute (no dotted keys allowed)
+        - django.http.request.HttpRequest # Can be a class name only or the full dotted path
+        - builtins.dict
+      my_attr: myClass
+```
 
 ## ISO Time with Timezone
 
@@ -869,12 +908,12 @@ filters:
   django:
     (): logging_utilities.filters.django_request.JsonDjangoRequest
     include_keys:
-      - request.path
-      - request.method
-      - request.headers
+      - http_request.path
+      - http_request.method
+      - http_request.headers
     exclude_keys:
-      - request.headers.Authorization
-      - request.headers.Proxy-Authorization
+      - http_request.headers.Authorization
+      - http_request.headers.Proxy-Authorization
 
 formatters:
   json:
@@ -887,7 +926,7 @@ formatters:
       function: funcName
       process: process
       thread: thread
-      request: request
+      request: http_request
       response: response
       message: message
 
@@ -962,6 +1001,12 @@ output:
 
 ### Case 6. Add parts of Django Request to JSON Output
 
+Let's say you want to log parts of the django `HttpRequest` in Json format. Django already logs it
+sometimes under `record.request` so you can use the django request filter to transform it to a jsonisable
+dictionary. However django sometimes also logs an object of type `socket.socket` that you may not
+want to include in the logs. In this case you could use the following configuration. This will only
+keep the request attribute if it is of type `HttpRequest`.
+
 config.yaml
 
 ```yaml
@@ -974,10 +1019,15 @@ root:
   propagate: True
 
 filters:
+  type_filter:
+    (): logging_utilities.filters.attr_type_filter.AttrTypeFilter
+    typecheck_list:
+      request: django.http.request.HttpRequest
   isotime:
     (): logging_utilities.filters.TimeAttribute
   django:
     (): logging_utilities.filters.django_request.JsonDjangoRequest
+    attr_name: request
     include_keys:
       - request.path
       - request.method
@@ -1010,6 +1060,9 @@ handlers:
     stream: ext://sys.stdout
     filters:
       - isotime
+      # Typefilter must be before django filter, as the django filter
+      # will modify the type of the "HttpRequest" object
+      - type_filter
       - django
 ```
 
@@ -1088,10 +1141,15 @@ root:
   propagate: True
 
 filters:
+  type_filter:
+    (): logging_utilities.filters.attr_type_filter.AttrTypeFilter
+    typecheck_list:
+      request: django.http.request.HttpRequest
   isotime:
     (): logging_utilities.filters.TimeAttribute
   django:
     (): logging_utilities.filters.django_request.JsonDjangoRequest
+    attr_name: request
     include_keys:
       - request.path
       - request.method
@@ -1118,6 +1176,8 @@ handlers:
     stream: ext://sys.stdout
     filters:
       - isotime
+      # Type filter must be before django filter
+      - type_filter
       - django
 ```
 
@@ -1220,6 +1280,15 @@ output:
 ```
 
 ## Breaking Changes
+
+### Version 4.x.x Breaking Changes
+
+From version 3.x.x to version 4.x.x there is the following breaking change:
+
+- The django request filter by default now reads the attribute `record.http_request` instead of
+the attribute `record.request`. There is however a new option `attr_name` in the filters constructor
+to manually specify the attribute name. See the example [Add parts of Django Request to JSON Output](#case-6-add-parts-of-django-request-to-json-output) for an example on how to use `attr_name` to be
+backward-compatible with 3.x.x
 
 ### Version 3.x.x Breaking Changes
 
