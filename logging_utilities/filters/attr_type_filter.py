@@ -28,7 +28,7 @@ class AttrTypeFilter(logging.Filter):
         """Initialize the filter
 
         Args:
-            typecheck_list: dict(dotted key, type|list of types)
+            typecheck_list: dict(key, type|list of types)
                 A dictionary that maps keys to a type or a list of types.
                 By default, it will only keep a parameter matching a key
                 if the types match or if any of the types in the list match
@@ -37,7 +37,7 @@ class AttrTypeFilter(logging.Filter):
                 in the dict will be ignored and passed though regardless of the
                 mode (whitelist or blacklist).
             is_blacklist: bool (default: false)
-                Wether the list passed should be a blacklist or a whitelist.
+                Whether the list passed should be a blacklist or a whitelist.
                 To use both, simply include this filter two times, one time with
                 this parameter set true and one time with this parameter set false.
         """

@@ -44,7 +44,7 @@ All features can be fully configured from the configuration file.
   - [Usage](#usage)
   - [Django Request Filter Constructor](#django-request-filter-constructor)
   - [Django Request Config Example](#django-request-config-example)
-- [Filter out attributes based on their types](#filter-out-attributes-based-on-their-types)
+- [Filter out LogRecord attributes based on their types](#filter-out-logrecord-attributes-based-on-their-types)
   - [Attribute Type Filter Constructor](#attribute-type-filter-constructor)
   - [Attribute Type Filter Config Example](#attribute-type-filter-config-example)
 - [ISO Time with Timezone](#iso-time-with-timezone)
@@ -468,10 +468,10 @@ If you want to log the [Django](https://www.djangoproject.com/) [HttpRequest](ht
 
 The `HttpRequest` attributes that are converted can be configured using the `include_keys` and/or `exclude_keys` filter parameters. This can be useful if you want to limit the log data, for example if you don't want to log Authentication headers.
 
-The django framework adds sometimes an HttpRequest or socket object under `record.request` when
+:warning: The django framework adds sometimes an HttpRequest or socket object under `record.request` when
 logging. So if you decide to use the attribute name `request` for this filter, beware that you
 will need to handle the case where the attribute is of type `socket` separately, for example by
-filtering it out using the attribute type filter. (see example [Filter out attributes based on their types](#filter-out-attributes-based-on-their-types))
+filtering it out using the attribute type filter. (see example [Filter out LogRecord attributes based on their types](#filter-out-logrecord-attributes-based-on-their-types))
 
 ### Usage
 
@@ -485,9 +485,9 @@ logger.info('My message', extra={'http_request': request})
 
 | Parameter      | Type | Default | Description                                    |
 |----------------|------|---------|------------------------------------------------|
-| `include_keys` | list | None    | All request attributes that match any of the dotted keys of the list will be jsonify in the `record.request`. When `None` then all attributes are added (default behavior). |
-| `exclude_keys` | list | None    | All request attributes that match any of the dotted keys of the list will not be added to the jsonify of the `record.request`. **NOTE** this has precedence to `include_keys` which means that if a key is in both list, then it is not added. |
-|  `attr_key`    | str  | `http_request` | The name of the attribute that stores the HttpRequest object. (Note that django sometimes stores an `HttpRequest` under `attr_key: request`. This is however not the default as django also stores other types of objects under this attribute name.)
+| `include_keys` | list | None    | All request attributes that match any of the dotted keys of the list will be added to the jsonifiable object. When `None` then all attributes are added (default behavior). |
+| `exclude_keys` | list | None    | All request attributes that match any of the dotted keys of the list will not be added to the jsonifiable object. **NOTE** this has precedence to `include_keys` which means that if a key is in both lists, then it is not added. |
+|  `attr_key`    | str  | `http_request` | The name of the attribute that stores the HttpRequest object. It will be replaced in place by a jsonifiable dict representing this object. (Note that django sometimes stores an `HttpRequest` under `attr_key: request`. This is however not the default as django also stores other types of objects under this attribute name.)
 
 ### Django Request Config Example
 
@@ -507,18 +507,18 @@ filters:
 
 **NOTE**: `JsonDjangoRequest` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
 
-## Filter out attributes based on their types
+## Filter out LogRecord attributes based on their types
 
 If different libraries or different parts of your code log different object types under the same
-record attribute, you can use this filter to keep only some of them (whitelist mode) or filter out
+logRecord extra attribute, you can use this filter to keep only some of them (whitelist mode) or filter out
 some of them (blacklist mode).
 
 ### Attribute Type Filter Constructor
 
 | Parameter       |             Type                    | Default | Description                 |
 |-----------------|-------------------------------------|---------|-----------------------------|
-|`typecheck_list` | dict(dotted key, type\|list of types)| None   | A dictionary that maps keys to a type or a list of types. By default, it will only keep a parameter matching a key if the types match or if any of the types in the list match (white list). If in black list mode, it will only keep a parameter if the types don't match. Parameters not appearing in the dict will be ignored and passed though regardless of the mode (whitelist or blacklist).
-| `is_blacklist`  | bool                                | false   | Wether the list passed should be a blacklist or a whitelist. To use both, simply include this filter two times, one time with this parameter set true and one time with this parameter set false.
+|`typecheck_list` | dict(key, type\|list of types)| None   | A dictionary that maps keys to a type or a list of types. By default, it will only keep a parameter matching a key if the types match or if any of the types in the list match (white list). If in black list mode, it will only keep a parameter if the types don't match. Parameters not appearing in the dict will be ignored and passed though regardless of the mode (whitelist or blacklist).
+| `is_blacklist`  | bool                                | false   | Whether the list passed should be a blacklist or a whitelist. To use both, simply include this filter two times, one time with this parameter set true and one time with this parameter set false.
 
 ### Attribute Type Filter Config Example
 
@@ -1059,8 +1059,10 @@ handlers:
     formatter: json
     stream: ext://sys.stdout
     filters:
-      - type_filter
       - isotime
+      # Typefilter must be before django filter, as the django filter
+      # will modify the type of the "HttpRequest" object
+      - type_filter
       - django
 ```
 
@@ -1173,8 +1175,9 @@ handlers:
     formatter: standard_extra
     stream: ext://sys.stdout
     filters:
-      - type_filter
       - isotime
+      # Type filter must be before django filter
+      - type_filter
       - django
 ```
 

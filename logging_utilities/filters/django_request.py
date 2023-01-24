@@ -40,13 +40,13 @@ class JsonDjangoRequest(logging.Filter):
 
         Args:
             include_keys: (list | None)
-                All request attributes that match any of the dotted keys of the list will be
-                jsonify in the record.request. When None then all attributes are added
+                All request attributes that match any of the dotted keys of the list will be added
+                to the jsonifiable object. When None then all attributes are added
                 (default behavior).
             exclude_keys: (list | None)
                 All request attributes that match any of the dotted keys of the list will not be
-                added to the jsonify of the record.request. NOTE this has precedence to include_keys
-                which means that if a key is in both list, then it is not added.
+                added to the jsonifiable object. NOTE this has precedence to include_keys
+                which means that if a key is in both lists, then it is not added.
             attr_name: str
                 The name of the attribute that stores the HttpRequest object. The default is
                 'http_request'.
@@ -73,7 +73,7 @@ class JsonDjangoRequest(logging.Filter):
             request = self._jsonify_dict(self.attr_name, orig_request.__dict__)
             if self._add_key(self.attr_name + '.headers', 'headers'):
                 # HttpRequest has a special headers property that is cached and is not always in
-                # record.request.__dict__
+                # record.http_request.__dict__
                 request['headers'] = self._jsonify_dict(
                     self.attr_name + '.headers', orig_request.headers
                 )
