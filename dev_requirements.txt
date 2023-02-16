@@ -57,7 +57,7 @@ typed-ast==1.5.4
 typing_extensions==4.4.0
 urllib3==1.26.14
 webencodings==0.5.1
-Werkzeug==2.2.2
+Werkzeug==2.2.3
 wrapt==1.14.1
 yapf==0.32.0
 zipp==3.11.0
