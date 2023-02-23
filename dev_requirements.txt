@@ -24,7 +24,7 @@ jeepney==0.8.0
 Jinja2==3.1.2
 keyring==23.13.1
 lazy-object-proxy==1.9.0
-markdown-it-py==2.1.0
+markdown-it-py==2.2.0
 MarkupSafe==2.1.2
 mccabe==0.7.0
 mdurl==0.1.2
