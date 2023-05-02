@@ -13,7 +13,7 @@ dill==0.3.6
 Django==3.2.16
 docutils==0.19
 escape==1.1
-Flask==2.2.2
+Flask==2.3.2
 idna==3.4
 importlib-metadata==6.0.0
 importlib-resources==5.10.2
