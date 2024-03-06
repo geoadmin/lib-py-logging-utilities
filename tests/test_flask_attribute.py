@@ -231,11 +231,14 @@ class FlaskAttributeTest(unittest.TestCase):
     def test_flask_attribute_view_args(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
-            self._configure_flask_attribute(logger,"%(message)s:%(flask_request_view_args)s",['view_args'])
+            self._configure_flask_attribute(
+                logger, "%(message)s:%(flask_request_view_args)s", ['view_args']
+            )
 
             # Handler required by add_url_rule function
-            def handle_foo(foo):
+            def handle_time(time):
                 return
+
             # Request without view_args
             with app.test_request_context('/make_report'):
                 logger.info('Simple message')
@@ -243,8 +246,8 @@ class FlaskAttributeTest(unittest.TestCase):
                 logger.info('Composed message %s', 'with extra', extra={'extra1': 23})
 
             # Request with view args
-            app.add_url_rule('/make_report/<foo>', view_func=handle_foo)
-            with app.test_request_context('/make_report/bar'):
+            app.add_url_rule('/make_report/<time>', view_func=handle_time)
+            with app.test_request_context('/make_report/current'):
                 logger.info('Simple message')
                 logger.info('Composed message: %s', 'this is a composed message')
                 logger.info('Composed message %s', 'with extra', extra={'extra1': 23})
@@ -255,10 +258,8 @@ class FlaskAttributeTest(unittest.TestCase):
                 'Simple message:{}',
                 'Composed message: this is a composed message:{}',
                 'Composed message with extra:{}',
-                "Simple message:{'foo': 'bar'}",
-                "Composed message: this is a composed message:{'foo': 'bar'}",
-                "Composed message with extra:{'foo': 'bar'}",
+                "Simple message:{'time': 'current'}",
+                "Composed message: this is a composed message:{'time': 'current'}",
+                "Composed message with extra:{'time': 'current'}",
             ]
         )
-
-
