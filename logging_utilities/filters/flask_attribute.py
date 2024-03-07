@@ -44,7 +44,12 @@ class FlaskRequestAttribute(logging.Filter):
                             value = str(request.data)
                     else:
                         raise
-                if isinstance(value, (ImmutableDict, ImmutableMultiDict, MultiDict)):
+                # Accessing flask_request_view_args.<key> might rise an exception if
+                # flask_request_view_args is Null. To safely access flask_request_view_args
+                # None is replaced by an empty dict.
+                if attribute == 'view_args' and value is None:
+                    setattr(record, rec_attribute, {})
+                elif isinstance(value, (ImmutableDict, ImmutableMultiDict, MultiDict)):
                     setattr(record, rec_attribute, dict(value))
                 elif value is None or isinstance(value, (str, int, float, dict, list)):
                     setattr(record, rec_attribute, value)

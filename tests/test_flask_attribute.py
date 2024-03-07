@@ -35,6 +35,7 @@ class FlaskAttributeTest(unittest.TestCase):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
             self._configure_flask_attribute(logger, FLASK_DEFAULT_FMT, FLASK_DEFAULT_ATTRIBUTES)
+            reset_log_record_factory()
             with self.assertRaises((ValueError, KeyError)):
                 logger.info('Simple message')
 
@@ -103,7 +104,6 @@ class FlaskAttributeTest(unittest.TestCase):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             logger = logging.getLogger('test_formatter')
             self._configure_flask_attribute(logger, FLASK_DEFAULT_FMT, FLASK_DEFAULT_ATTRIBUTES)
-
             with app.test_request_context('/make_report/2017?param1=value1'):
                 logger.info('Simple message')
                 logger.info('Composed message: %s', 'this is a composed message')
@@ -225,5 +225,41 @@ class FlaskAttributeTest(unittest.TestCase):
                 "Simple message:text/plain:{'charset': 'utf-8'}",
                 "Composed message: this is a composed message:text/plain:{'charset': 'utf-8'}",
                 "Composed message with extra:text/plain:{'charset': 'utf-8'}",
+            ]
+        )
+
+    def test_flask_attribute_view_args(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_flask_attribute(
+                logger, "%(message)s:%(flask_request_view_args)s", ['view_args']
+            )
+
+            # Handler required by add_url_rule function
+            def handle_time(time):
+                return
+
+            # Request without view_args
+            with app.test_request_context('/make_report'):
+                logger.info('Simple message')
+                logger.info('Composed message: %s', 'this is a composed message')
+                logger.info('Composed message %s', 'with extra', extra={'extra1': 23})
+
+            # Request with view args
+            app.add_url_rule('/make_report/<time>', view_func=handle_time)
+            with app.test_request_context('/make_report/current'):
+                logger.info('Simple message')
+                logger.info('Composed message: %s', 'this is a composed message')
+                logger.info('Composed message %s', 'with extra', extra={'extra1': 23})
+
+        self.assertEqual(
+            ctx.output,
+            [
+                'Simple message:{}',
+                'Composed message: this is a composed message:{}',
+                'Composed message with extra:{}',
+                "Simple message:{'time': 'current'}",
+                "Composed message: this is a composed message:{'time': 'current'}",
+                "Composed message with extra:{'time': 'current'}",
             ]
         )
