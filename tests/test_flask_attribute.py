@@ -125,7 +125,7 @@ class FlaskAttributeTest(unittest.TestCase):
                 'INFO:Composed message: this is a composed message:http://localhost/make_report/2017?param1=value1::param1=value1',
                 'INFO:Composed message with extra:http://localhost/make_report/2017?param1=value1::param1=value1',
                 'INFO:Simple message:http://localhost/make_report/2017?param1=value1&param2=value2::param1=value1&param2=value2',
-                'INFO:Simple message:http://localhost/make_report/2017?param1=This%20a%20string%20%3F::param1=This%20a%20string%20%3F',
+                'INFO:Simple message:http://localhost/make_report/2017?param1=This%20a%20string%20?::param1=This%20a%20string%20%3F',
             ]
         )
 
