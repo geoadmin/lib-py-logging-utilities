@@ -10,17 +10,3 @@ jobs:
   release:
     uses: geoadmin/.github/.github/workflows/semver-release.yml@master
 
-  publish:
-    needs: release
-    if: ${{ github.ref == 'refs/heads/master' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Build and Publish Package on PyPI
-        run: make publish
-        env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USER }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
