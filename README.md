@@ -89,8 +89,6 @@ PR can be directly open on `master`. Then the PR title define the version bump a
 - PR title and/or commit message contains `#patch` or head branch name starts with `bug-|hotfix-|bugfix-` => patch version is bumped
 - Otherwise by default the minor version is bumped
 
-Note that publish is done by `.github/workflow/semver.yml` and not by codebuild.
-
 ## Contribution
 
 Every contribution to this library is welcome ! So if you find a bug or want to add a new feature everyone is welcome to open an [issue](https://github.com/geoadmin/lib-py-logging-utilities/issues) or created a [Pull Request](https://github.com/geoadmin/lib-py-logging-utilities/pulls).
