@@ -109,7 +109,7 @@ package: $(DEV_REQUIREMENTS_TIMESTAMP)
 
 
 .PHONY: publish
-publish: clean-all publish-check package
+publish: publish-check package
 	@echo "Upload package version=$(PACKAGE_VERSION)"
 	$(PYTHON) -m twine upload dist/*
 
