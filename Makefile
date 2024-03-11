@@ -4,33 +4,33 @@ SHELL = /bin/bash
 
 
 CURRENT_DIR := $(shell pwd)
-VENV := $(CURRENT_DIR)/.venv
-DEV_REQUIREMENTS = $(CURRENT_DIR)/dev_requirements.txt
 
 # Test reports configuration
 TEST_REPORT_DIR ?= $(CURRENT_DIR)/tests/report
 TEST_REPORT_FILE ?= nose2-junit.xml
 
-# venv targets timestamps
-VENV_TIMESTAMP = $(VENV)/.timestamp
-DEV_REQUIREMENTS_TIMESTAMP = $(VENV)/.dev-requirements.timestamp
-
 # general targets timestamps
 TIMESTAMPS = .timestamps
+REQUIREMENTS := $(TIMESTAMPS) $(PIP_FILE) $(PIP_FILE_LOCK)
 
 # Find all python files that are not inside a hidden directory (directory starting with .)
 PYTHON_FILES := $(shell find ./* -type d \( -path ./build -o -path ./dist \) -prune -false -o -type f -name "*.py" -print)
 
-PYTHON_VERSION ?= 3
-SYSTEM_PYTHON := python$(PYTHON_VERSION)
+# PIPENV files
+PIP_FILE = Pipfile
+PIP_FILE_LOCK = Pipfile.lock
+
+# default configuration
+ENV_FILE ?= .env.local
 
 # Commands
-PYTHON := $(VENV)/bin/python3
-PIP := $(VENV)/bin/pip3
-YAPF := $(VENV)/bin/yapf
-ISORT := $(VENV)/bin/isort
-NOSE := $(VENV)/bin/nose2
-PYLINT := $(VENV)/bin/pylint
+PIPENV_RUN := pipenv run
+PYTHON := $(PIPENV_RUN) python3
+PIP := $(PIPENV_RUN) pip3
+YAPF := $(PIPENV_RUN) yapf
+ISORT := $(PIPENV_RUN) isort
+NOSE := $(PIPENV_RUN) nose2
+PYLINT := $(PIPENV_RUN) pylint
 
 PACKAGE_VERSION = $(shell awk '/^Version:/ {print $$2}' logging_utilities.egg-info/PKG-INFO)
 
@@ -57,18 +57,20 @@ help:
 	@echo "- clean              Clean genereated files"
 	@echo "- clean-venv         Clean python venv"
 	@echo "- clean-all          Clean everything"
+	@echo "- python-version     Show python version"
 
 
 # Build targets. Calling setup is all that is needed for the local files to be installed as needed.
 
 .PHONY: setup
-setup: $(DEV_REQUIREMENTS_TIMESTAMP)
-
+setup: $(REQUIREMENTS)
+		pipenv install --dev
+		pipenv shell
 
 # linting target, calls upon yapf to make sure your code is easier to read and respects some conventions.
 
 .PHONY: format
-format: $(DEV_REQUIREMENTS_TIMESTAMP)
+format: $(REQUIREMENTS)
 	$(YAPF) -p -i --style .style.yapf $(PYTHON_FILES)
 	$(ISORT) $(PYTHON_FILES)
 
@@ -83,7 +85,7 @@ ci-check-format: format
 
 
 .PHONY: lint
-lint: $(DEV_REQUIREMENTS_TIMESTAMP)
+lint: $(REQUIREMENTS)
 	$(PYLINT) $(PYTHON_FILES)
 
 
@@ -107,7 +109,7 @@ package: $(DEV_REQUIREMENTS_TIMESTAMP)
 
 
 .PHONY: publish
-publish: clean-all publish-check setup package
+publish: clean-all publish-check package
 	@echo "Upload package version=$(PACKAGE_VERSION)"
 	$(PYTHON) -m twine upload dist/*
 
@@ -116,15 +118,12 @@ publish: clean-all publish-check setup package
 
 .PHONY: clean-venv
 clean-venv:
-	if [ -e $(VENV)/bin/deactivate ]; then $(VENV)/deactivate; fi
-	rm -rf $(VENV)
-
+	pipenv --rm
 
 .PHONY: clean
-clean:
+clean: clean-venv
 	@# clean python cache files
 	find . -name __pycache__ -type d -print0 | xargs -I {} -0 rm -rf "{}"
-	rm -rf $(PYTHON_LOCAL_DIR)
 	rm -rf $(TEST_REPORT_DIR)
 	rm -rf $(TIMESTAMPS)
 	rm -rf dist
@@ -132,9 +131,13 @@ clean:
 	rm -rf *.egg-info
 	rm -f .coverage
 
-
 .PHONY: clean-all
-clean-all: clean clean-venv
+clean-all: clean
+
+.PHONY: python-version
+python-version:
+	$(PYTHON) python --version
+
 
 
 # Actual builds targets with dependencies
