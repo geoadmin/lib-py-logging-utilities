@@ -44,6 +44,9 @@ All features can be fully configured from the configuration file.
   - [Usage](#usage)
   - [Django Request Filter Constructor](#django-request-filter-constructor)
   - [Django Request Config Example](#django-request-config-example)
+- [Django request log records](#django-request-log-records)
+  - [Usage \& Configuration](#usage--configuration)
+    - [Configure the filter `DjangoAppendRequestFilter`](#configure-the-filter-djangoappendrequestfilter)
 - [Filter out LogRecord attributes based on their types](#filter-out-logrecord-attributes-based-on-their-types)
   - [Attribute Type Filter Constructor](#attribute-type-filter-constructor)
   - [Attribute Type Filter Config Example](#attribute-type-filter-config-example)
@@ -506,6 +509,34 @@ filters:
 ```
 
 **NOTE**: `JsonDjangoRequest` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
+
+## Django request log records
+
+To add context information from the current request to log records. For this the filter `DjangoAppendRequestFilter` must be added as well as the middleware `AddRequestToLogMiddleware`.
+
+### Usage & Configuration
+
+Add `logging_utilities.request_middleware.AddRequestToLogMiddleware` to the `settings.MIDDLEWARE` list.
+
+#### Configure the filter `DjangoAppendRequestFilter`
+
+```yaml
+filters:
+  django_request_meta:
+    (): logging_utilities.filters.django_append_request.DjangoAppendRequestFilter
+    request_attributes:
+      - path
+      - method
+      - META.QUERY_STRING
+    always_add: True
+```
+
+| Parameter    | Type | Default | Description                                    |
+|--------------|------|---------|------------------------------------------------|
+| `attributes` | list | None    | All request attributes that match any of the dotted keys of the list will be added to the jsonifiable object. When `None` then no attributes are added (default behavior). |
+| `always_add` | bool | False   | By default empty attributes are omitted. If set, empty attributes will be added with value `-` |
+
+
 
 ## Filter out LogRecord attributes based on their types
 
