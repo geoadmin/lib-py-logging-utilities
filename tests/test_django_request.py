@@ -42,7 +42,7 @@ class DjangoAppendRequestFilterTest(unittest.TestCase):
             self._configure_django_filter(
                 test_logger,
                 DjangoAppendRequestFilter(
-                    request, request_attributes=["path", "method", "META.QUERY_STRING"]
+                    request, attributes=["path", "method", "META.QUERY_STRING"]
                 )
             )
 
@@ -73,7 +73,7 @@ class DjangoAppendRequestFilterTest(unittest.TestCase):
             self._configure_django_filter(
                 test_logger,
                 DjangoAppendRequestFilter(
-                    request, request_attributes=["does", "not", "exist"], always_add=True
+                    request, attributes=["does", "not", "exist"], always_add=True
                 )
             )
 
@@ -93,4 +93,21 @@ class DjangoAppendRequestFilterTest(unittest.TestCase):
             dictionary([("levelname", "INFO"), ("name", "test_formatter"),
                         ("message", "second message"), ("request.does", "-"), ("request.not", "-"),
                         ("request.exist", "-")])
+        )
+
+    def test_django_request_log_no_request(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            test_logger = logging.getLogger("test_formatter")
+            self._configure_django_filter(
+                test_logger,
+                DjangoAppendRequestFilter(request=None, attributes=["path"], always_add=True)
+            )
+
+            test_logger.debug("first message")
+
+        message1 = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        self.assertDictEqual(
+            message1,
+            dictionary([("levelname", "DEBUG"), ("name", "test_formatter"),
+                        ("message", "first message"), ("request.path", "-")])
         )

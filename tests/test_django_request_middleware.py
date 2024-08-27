@@ -7,10 +7,11 @@ from collections import OrderedDict
 from django.conf import settings
 from django.test import RequestFactory
 
+from logging_utilities.django_middlewares.request_middleware import \
+    AddRequestToLogMiddleware
 from logging_utilities.filters.django_append_request import \
     DjangoAppendRequestFilter
 from logging_utilities.formatters.json_formatter import JsonFormatter
-from logging_utilities.request_middleware import AddRequestToLogMiddleware
 
 # From python3.7, dict is ordered
 if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
@@ -34,7 +35,7 @@ class AddRequestToLogMiddlewareTest(unittest.TestCase):
         for handler in _logger.handlers:
             handler.setFormatter(JsonFormatter(add_always_extra=True))
             django_filter = DjangoAppendRequestFilter(
-                request_attributes=["method", "path", "META.QUERY_STRING", "headers"]
+                attributes=["method", "path", "META.QUERY_STRING", "headers"]
             )
             handler.addFilter(django_filter)
 
@@ -48,7 +49,7 @@ class AddRequestToLogMiddlewareTest(unittest.TestCase):
             self._configure_django_filter(logger)
             my_header = {"HTTP_CUSTOM_KEY": "VALUE"}
             request = self.factory.get("/some_path?test=some_value", **my_header)
-            middleware = AddRequestToLogMiddleware(test_handler, root="tests")
+            middleware = AddRequestToLogMiddleware(test_handler, root_logger="tests")
             middleware(request)
 
         message1 = json.loads(ctx.output[0], object_pairs_hook=dictionary)

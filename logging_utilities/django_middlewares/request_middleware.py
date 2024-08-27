@@ -33,8 +33,8 @@ class AddRequestToLogMiddleware():
     """Middleware that adds a logging filter *DjangoAppendRequestFilter* to the request.
     """
 
-    def __init__(self, get_response: Callable[[WSGIRequest], Any], root: str = ""):
-        self.root = root
+    def __init__(self, get_response: Callable[[WSGIRequest], Any], root_logger: str = ""):
+        self.root_logger = root_logger
         self.get_response = get_response
 
     def __call__(self, request: WSGIRequest) -> Any:
@@ -50,13 +50,13 @@ class AddRequestToLogMiddleware():
         """Return loggers part of root.
         """
         result: dict[str, logging.Logger] = {}
-        prefix = self.root + "."
+        prefix = self.root_logger + "."
         for name, log in logging.Logger.manager.loggerDict.items():
             if not isinstance(log, logging.Logger) or not name.startswith(prefix):
-                continue  # not under self.root
+                continue  # not under self.root_logger
             result[name] = log
         # also add root logger
-        result[self.root] = logging.getLogger(self.root)
+        result[self.root_logger] = logging.getLogger(self.root_logger)
         return result
 
     def _find_handlers(self) -> list[logging.Handler]:
@@ -73,13 +73,13 @@ class AddRequestToLogMiddleware():
         Only include handlers that have at least one filter of type *filter_cls*.
         """
         result = {}
-        for logger in self._find_handlers():
+        for handler in self._find_handlers():
             attrs = []
-            for f in logger.filters:
+            for f in handler.filters:
                 if isinstance(f, filter_cls):
                     attrs.extend(f.attributes)
             if attrs:
-                result[logger] = attrs
+                result[handler] = attrs
         return result
 
     def _add_filter(self, f: DjangoAppendRequestFilter) -> None:
