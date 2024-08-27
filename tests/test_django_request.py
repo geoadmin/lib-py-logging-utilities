@@ -29,21 +29,22 @@ class DjangoAppendRequestFilterTest(unittest.TestCase):
         self.factory = RequestFactory()
 
     @classmethod
-    def _configure_django_filter(cls, _logger, request):
+    def _configure_django_filter(cls, _logger, django_filter):
         _logger.setLevel(logging.DEBUG)
-
         for handler in _logger.handlers:
             handler.setFormatter(JsonFormatter(add_always_extra=True))
-            django_filter = DjangoAppendRequestFilter(
-                request, request_attributes=["path", "method", "META.QUERY_STRING"]
-            )
             handler.addFilter(django_filter)
 
     def test_django_request_log(self):
         request = self.factory.get("/some_path?test=some_value")
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
             test_logger = logging.getLogger("test_formatter")
-            self._configure_django_filter(test_logger, request)
+            self._configure_django_filter(
+                test_logger,
+                DjangoAppendRequestFilter(
+                    request, request_attributes=["path", "method", "META.QUERY_STRING"]
+                )
+            )
 
             test_logger.debug("first message")
             test_logger.info("second message")
@@ -63,4 +64,33 @@ class DjangoAppendRequestFilterTest(unittest.TestCase):
                         ("message", "second message"), ("request.method", "GET"),
                         ("request.path", "/some_path"),
                         ("request.META.QUERY_STRING", "test=some_value")])
+        )
+
+    def test_django_request_log_always_add(self):
+        request = self.factory.get("/some_path?test=some_value")
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            test_logger = logging.getLogger("test_formatter")
+            self._configure_django_filter(
+                test_logger,
+                DjangoAppendRequestFilter(
+                    request, request_attributes=["does", "not", "exist"], always_add=True
+                )
+            )
+
+            test_logger.debug("first message")
+            test_logger.info("second message")
+
+        message1 = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        self.assertDictEqual(
+            message1,
+            dictionary([("levelname", "DEBUG"), ("name", "test_formatter"),
+                        ("message", "first message"), ("request.does", "-"), ("request.not", "-"),
+                        ("request.exist", "-")])
+        )
+        message2 = json.loads(ctx.output[1], object_pairs_hook=dictionary)
+        self.assertDictEqual(
+            message2,
+            dictionary([("levelname", "INFO"), ("name", "test_formatter"),
+                        ("message", "second message"), ("request.does", "-"), ("request.not", "-"),
+                        ("request.exist", "-")])
         )
