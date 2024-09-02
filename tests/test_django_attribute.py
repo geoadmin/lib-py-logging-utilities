@@ -16,7 +16,8 @@ if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
 else:
     dictionary = OrderedDict
 
-settings.configure()
+if not settings.configured:
+    settings.configure()
 
 logger = logging.getLogger(__name__)
 
