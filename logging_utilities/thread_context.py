@@ -2,7 +2,8 @@ from threading import local
 
 
 class ThreadContext(local):
-    pass
+    """ThreadContext is a store for data that is thread specific.
+    """
 
 
 thread_context = ThreadContext()

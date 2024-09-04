@@ -44,8 +44,6 @@ All features can be fully configured from the configuration file.
   - [Usage](#usage)
   - [Django Request Filter Constructor](#django-request-filter-constructor)
   - [Django Request Config Example](#django-request-config-example)
-- [Django add request to log records](#django-add-request-to-log-records)
-  - [Usage \& Configuration](#usage--configuration)
 - [Filter out LogRecord attributes based on their types](#filter-out-logrecord-attributes-based-on-their-types)
   - [Attribute Type Filter Constructor](#attribute-type-filter-constructor)
   - [Attribute Type Filter Config Example](#attribute-type-filter-config-example)
@@ -57,6 +55,8 @@ All features can be fully configured from the configuration file.
 - [Logger Level Filter](#logger-level-filter)
   - [Logger Level Filter Constructor](#logger-level-filter-constructor)
   - [Logger Level Filter Config Example](#logger-level-filter-config-example)
+- [Django middleware request context](#django-middleware-request-context)
+- [Log thread context](#log-thread-context)
 - [Basic Usage](#basic-usage)
   - [Case 1. Simple JSON Output](#case-1-simple-json-output)
   - [Case 2. JSON Output Configured within Python Code](#case-2-json-output-configured-within-python-code)
@@ -66,6 +66,7 @@ All features can be fully configured from the configuration file.
   - [Case 6. Add parts of Django Request to JSON Output](#case-6-add-parts-of-django-request-to-json-output)
   - [Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-7-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
   - [Case 8. Add Specific Log Extra to the Standard Formatter](#case-8-add-specific-log-extra-to-the-standard-formatter)
+  - [Case 9. Django add request info to all log records](#case-9-django-add-request-info-to-all-log-records)
 - [Breaking Changes](#breaking-changes)
   - [Version 4.x.x Breaking Changes](#version-4xx-breaking-changes)
   - [Version 3.x.x Breaking Changes](#version-3xx-breaking-changes)
@@ -509,65 +510,6 @@ filters:
 
 **NOTE**: `JsonDjangoRequest` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
 
-## Django add request to log records
-
-Combine the use of the middleware `AddToThreadContextMiddleware` with the filters `AddThreadContextFilter` and `JsonDjangoRequest` to add request context to each log entry.
-
-### Usage & Configuration
-
-Add `AddToThreadContextMiddleware` to the django `settings.MIDDLEWARE` list. This will store the request value in a thread local variable.
-
-For example:
-
-```python
-MIDDLEWARE = (
-    ...,
-    'logging_utilities.django_middlewares.add_request_context.AddToThreadContextMiddleware',
-    ...,
-)
-```
-
-Configure the logging filter `AddThreadContextFilter` to add the request from the thread variable to the log record. the middleware `AddToThreadContextMiddleware` will add the request to the variable name `request`, so make sure the context_key has this value.
-
-```yaml
-filters:
-  add_request:
-    (): logging_utilities.filters.add_thread_context_filter.AddThreadContextFilter
-    contexts:
-    - logger_key: http_request
-      context_key: request
-```
-
-| Parameter  | Type | Default | Description                                    |
-|------------|------|---------|------------------------------------------------|
-| `contexts` | list | empty   | List of values to add to the log record. Dictionary must contain value for 'context_key' to read value from thread local variable. Dictionary must also contain 'logger_key' to set the value on the log record. |
-
-Configure the logging filter `JsonDjangoRequest` to add request fields to the json log output.
-
-For example:
-
-```yaml
-filters:
-  request_fields:
-    (): logging_utilities.filters.django_request.JsonDjangoRequest
-    include_keys:
-      - http_request.path
-      - http_request.method
-```
-
-Make sure to add the filters in the correct order, for example:
-
-```yaml
-handlers:
-  console:
-    formatter: json
-    filters:
-      # These filters modify the record in-place, and as the record is passed serially to each handler
-      - add_request
-      - request_fields
-
-```
-
 ## Filter out LogRecord attributes based on their types
 
 If different libraries or different parts of your code log different object types under the same
@@ -680,6 +622,41 @@ handlers:
 ```
 
 **NOTE**: `LevelFilter` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
+
+## Django middleware request context
+
+`AddToThreadContextMiddleware` is a [Middleware](https://docs.djangoproject.com/en/5.1/topics/http/middleware/) with which you can add the [Django](https://www.djangoproject.com/) [HttpRequest](https://docs.djangoproject.com/en/5.1/ref/request-response/#httprequest-objects) to thread local variables. The request object is added to a global variable in `logging_utilities.thread_context` and can be accessed in the following way:
+
+```python
+from logging_utilities.thread_context import thread_context
+
+getattr(thread_context, 'request')
+```
+
+## Log thread context
+
+`AddThreadContextFilter` provides a logging filter that will add data from the thread local store `logging_utilities.thread_context` to the log record. To set data on the thread store do the following:
+
+```python
+from logging_utilities.thread_context import thread_context
+
+setattr(thread_context, 'key', data)
+```
+
+Configure the filter to decide which data should be added and how it should be named:
+
+```yaml
+filters:
+  add_request:
+    (): logging_utilities.filters.add_thread_context_filter.AddThreadContextFilter
+    contexts:
+    - logger_key: log_record_key
+      context_key: key
+```
+
+| Parameter  | Type | Default | Description                                    |
+|------------|------|---------|------------------------------------------------|
+| `contexts` | list | empty   | List of values to add to the log record. Dictionary must contain value for 'context_key' to read value from thread local variable. Dictionary must also contain 'logger_key' to set the value on the log record. |
 
 ## Basic Usage
 
@@ -1338,6 +1315,57 @@ output:
 
 ```shell
 2020-11-19 13:42:29,424 - DEBUG - your_logger - My log with extras - extra1=23
+```
+
+### Case 9. Django add request info to all log records
+
+Combine the use of the middleware `AddToThreadContextMiddleware` with the filters `AddThreadContextFilter` and `JsonDjangoRequest`, as well as the `JsonFormatter` to add request context to each log entry.
+
+Activate the [middleware](https://docs.djangoproject.com/en/5.1/topics/http/middleware/#activating-middleware):
+
+```python
+MIDDLEWARE = (
+    ...,
+    'logging_utilities.django_middlewares.add_request_context.AddToThreadContextMiddleware',
+    ...,
+)
+```
+
+Configure the filters `AddThreadContextFilter` and `JsonDjangoRequest` to add the request from the thread variable to the log record and make it json encodable. Use the `JsonFormatter` to format the request values
+
+```yaml
+filters:
+  add_request:
+    (): logging_utilities.filters.add_thread_context_filter.AddThreadContextFilter
+    contexts:
+    - context_key: request # Must be value 'request' as this is how the middleware adds the value.
+      logger_key: request
+  request_fields:
+    (): logging_utilities.filters.django_request.JsonDjangoRequest
+    attr_key: request # Must match the above logger_key
+    include_keys:
+      - request.path
+      - request.method
+formatters:
+  json:
+    (): logging_utilities.formatters.json_formatter.JsonFormatter
+    fmt:
+      time: asctime
+      level: levelname
+      logger: name
+      module: module
+      message: message
+      request:
+        path: request.path
+        method: request.method
+handlers:
+  console:
+    formatter: json
+    filters:
+      # Make sure to add the filters in the correct order.
+      # These filters modify the record in-place, and as the record is passed serially to each handler.
+      - add_request
+      - request_fields
 ```
 
 ## Breaking Changes
