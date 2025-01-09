@@ -343,18 +343,16 @@ class JsonFormatter(logging.Formatter):
         if self.add_always_extra:
             extra = self._get_extra_attrs(record)
 
-        message = self.formatMessage(record)
-
-        if self.add_always_extra:
-            self._add_extra_to_message(extra, message)
-
         if record.exc_info:
             # Cache the traceback text to avoid converting it multiple times
             # (it's constant anyway)
             if not record.exc_text:
                 record.exc_text = self.formatException(record.exc_info)
-        if record.exc_text:
-            message['exc_text'] = record.exc_text
+
+        message = self.formatMessage(record)
+
+        if self.add_always_extra:
+            self._add_extra_to_message(extra, message)
 
         if record.stack_info:
             message['stack_info'] = self.formatStack(record.stack_info)

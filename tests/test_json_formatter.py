@@ -18,6 +18,7 @@ else:
     dictionary = OrderedDict
 
 
+# pylint: disable=too-many-public-methods
 class BasicJsonFormatterTest(unittest.TestCase):
     maxDiff = None
 
@@ -785,5 +786,43 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ('7-missing-attr', ''),
                 ("my-extra", ""),
                 ("message", "Composed message without extra"),
+            ])
+        )
+
+    def test_exc_info_without_configuration(self):
+        """
+        Test that the exc_text doesn't appear if it's not configured
+        in the logger, even though the logging call records it
+        """
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('level', 'levelname'),
+                    ('request', ['request.path', 'request.method']),
+                    ('message', 'message'),
+                ]),
+                remove_empty=True,
+                ignore_missing=True
+            )
+
+            try:
+                raise Exception("Error occurred")
+            except Exception as err:  # pylint: disable=broad-except
+                logger.critical(
+                    str(err),
+                    exc_info=sys.exc_info(),
+                    extra={'request': {
+                        'path': '/my/path', 'method': 'GET', 'scheme': 'https'
+                    }}
+                )
+
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "CRITICAL"),
+                ("request", ["/my/path", "GET"]),
+                ("message", "Error occurred"),  # no exc_text because it wasn't configured
             ])
         )
