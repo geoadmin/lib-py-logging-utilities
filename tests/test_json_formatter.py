@@ -379,11 +379,8 @@ class BasicJsonFormatterTest(unittest.TestCase):
             logger = logging.getLogger('test_formatter')
             self._configure_logger(
                 logger,
-                fmt=dictionary([
-                    ('levelname', 'levelname'),
-                    ('name', 'name'),
-                    ('message', 'message'),
-                ])
+                fmt=dictionary([('levelname', 'levelname'), ('name', 'name'),
+                                ('message', 'message'), ('stack_info', 'stack_info')])
             )
             logger.info('Message with stack info', stack_info=True)
         message = json.loads(ctx.output[0], object_pairs_hook=dictionary)
@@ -824,5 +821,43 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ("level", "CRITICAL"),
                 ("request", ["/my/path", "GET"]),
                 ("message", "Error occurred"),  # no exc_text because it wasn't configured
+            ])
+        )
+
+    def test_stack_info_without_configuration(self):
+        """
+        Test that the stack_info doesn't appear in the record when it's
+        not configured, even though the log call records it
+        """
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt=dictionary([
+                    ('level', 'levelname'),
+                    ('request', ['request.path', 'request.method']),
+                    ('message', 'message'),
+                ]),
+                remove_empty=True,
+                ignore_missing=True
+            )
+
+            logger.info(
+                "Stack isn't wished for here",
+                exc_info=sys.exc_info(),
+                extra={'request': {
+                    'path': '/my/path', 'method': 'GET', 'scheme': 'https'
+                }},
+                # record the stack_info
+                stack_info=True
+            )
+
+        self.assertDictEqual(
+            json.loads(ctx.output[0], object_pairs_hook=dictionary),
+            dictionary([
+                ("level", "INFO"),
+                ("request", ["/my/path", "GET"]),
+                ("message",
+                 "Stack isn't wished for here"),  # no stack_info because it wasn't configured
             ])
         )

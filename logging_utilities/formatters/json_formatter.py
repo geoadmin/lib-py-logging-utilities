@@ -349,13 +349,13 @@ class JsonFormatter(logging.Formatter):
             if not record.exc_text:
                 record.exc_text = self.formatException(record.exc_info)
 
+        if record.stack_info:
+            record.stack_info = self.formatStack(record.stack_info)
+
         message = self.formatMessage(record)
 
         if self.add_always_extra:
             self._add_extra_to_message(extra, message)
-
-        if record.stack_info:
-            message['stack_info'] = self.formatStack(record.stack_info)
 
         # When adding all extras, to avoid crash when a log message adds an extra with a non
         # serializable object, we add a default serializer.
