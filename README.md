@@ -17,7 +17,7 @@ All features can be fully configured from the configuration file.
 
 **NOTE:** only python 3 is supported
 
-:warning: **Version 3.x.x BREAKING CHANGES** see [Breaking Changes](#version-3xx-breaking-changes)
+:warning: **Version 5.x.x BREAKING CHANGES** see [Breaking Changes](#version-5xx-breaking-changes)
 
 ## Table of content
 
@@ -67,7 +67,9 @@ All features can be fully configured from the configuration file.
   - [Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-7-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
   - [Case 8. Add Specific Log Extra to the Standard Formatter](#case-8-add-specific-log-extra-to-the-standard-formatter)
   - [Case 9. Django add request info to all log records](#case-9-django-add-request-info-to-all-log-records)
+  - [Case 10. Add stack traces to log records](#case-10-add-stack-traces-to-log-records)
 - [Breaking Changes](#breaking-changes)
+  - [Version 5.x.x Breaking Changes](#version-5xx-breaking-changes)
   - [Version 4.x.x Breaking Changes](#version-4xx-breaking-changes)
   - [Version 3.x.x Breaking Changes](#version-3xx-breaking-changes)
   - [Version 2.x.x Breaking Changes](#version-2xx-breaking-changes)
@@ -273,7 +275,7 @@ For more information on Pyramid Tweens see [Registering Tween](https://docs.pylo
 
 ## JSON Formatter
 
-**JsonFormatter** is a python logging formatter that transform the log output into a json object.
+**JsonFormatter** is a python logging formatter that transforms the log output into a json object.
 
 JSON log format is quite useful especially when the logs are sent to **LogStash**.
 
@@ -1368,7 +1370,45 @@ handlers:
       - request_fields
 ```
 
+### Case 10. Add stack traces to log records
+
+If you want to embed the stack trace of either an Exception or a log entry in general, you can do so with following additions to the logging call:
+
+```python
+import sys
+
+logger.debug('My log with stack info', stack_info=True)
+logger.critical('Exception happened', exc_info=sys.exc_info())
+```
+
+Or you simply call `logger.exception('Your message')` which automatically adds the exc_info. However this one is logging as in level `ERROR` and not `CRITICAL`.
+
+This will make the stack info available for the formatter. It can be used for instance like follows:
+
+```yaml
+[...]
+formatters:
+  json:
+    (): logging_utilities.formatters.json_formatter.JsonFormatter
+    fmt:
+      error:
+        stack_trace: exc_text
+      stack_info: stack_info
+      time: asctime
+      level: levelname
+      logger: name
+      module: module
+      message: message
+      request:
+        path: request.path
+        method: request.method
+```
+
 ## Breaking Changes
+
+### Version 5.x.x Breaking Changes
+
+Previously, the fields `exc_text` and `stack_info` were always added to the log message if they existed. This behavior is slightly changed: instead of adding them to the message in any case, they are added to the record so that they can be configured via the `fmt` field in the logging configuration as described in [#case-10-add-stack-traces-to-log-records].
 
 ### Version 4.x.x Breaking Changes
 
