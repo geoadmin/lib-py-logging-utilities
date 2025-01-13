@@ -71,10 +71,11 @@ class AddRequestToLogTest(unittest.TestCase):
                 ("levelname", "INFO"),
                 ("name", "tests.test_log_request_context"),
                 ("message", "some value"),
+                ('taskName', None),
                 (
                     "request",
-                    dictionary([("path", "/some_path"),
-                                ("META", dictionary([("QUERY_STRING", "test=some_value")]))])
+                    dictionary([("META", dictionary([("QUERY_STRING", "test=some_value")])),
+                                ("path", "/some_path")])
                 ),
             ])
         )

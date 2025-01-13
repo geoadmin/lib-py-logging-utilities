@@ -52,7 +52,7 @@ class AddThreadContextFilterTest(unittest.TestCase):
         self.assertDictEqual(
             message1,
             dictionary([("levelname", "DEBUG"), ("name", "test_logger"),
-                        ("message", "some message")])
+                        ("message", "some message"), ('taskName', None)])
         )
 
     def test_add_thread_context(self):
@@ -95,5 +95,6 @@ class AddThreadContextFilterTest(unittest.TestCase):
             self.assertDictEqual(
                 message1,
                 dictionary([("levelname", "DEBUG"), ("name", tc['logger_name']),
-                            ("message", tc['log_message']), (tc['attr_name'], tc['expect_value'])])
+                            ("message", tc['log_message']), (tc['attr_name'], tc['expect_value']),
+                            ('taskName', None)])
             )

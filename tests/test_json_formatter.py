@@ -222,6 +222,7 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 fmt=dictionary([
                     ('levelname', 'levelname'),
                     ('msg', 'message'),
+                    ('taskName', None),
                     (
                         'system',
                         dictionary([
@@ -365,6 +366,7 @@ class BasicJsonFormatterTest(unittest.TestCase):
                 ("levelname", "INFO"),
                 ("name", "test_formatter"),
                 ("message", "Composed message with extra"),
+                ('taskName', None),
                 ('extra-list', [{
                     "extra-1": "file"
                 }, {
