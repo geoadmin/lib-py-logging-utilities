@@ -20,5 +20,6 @@ RECORD_DFT_ATTR = {
     'stack_info',
     'msg',
     'args',
-    'message'
+    'message',
+    'taskName'
 }
