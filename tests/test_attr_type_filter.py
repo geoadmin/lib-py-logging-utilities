@@ -63,7 +63,6 @@ class AttrTypeFilterTest(unittest.TestCase):
                 "levelname": "INFO",
                 "name": "test_formatter",
                 "message": "Composed message with extra",
-                "taskName": None,
                 **filtered_extra_dict
             },
         )
