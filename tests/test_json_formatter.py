@@ -10,6 +10,7 @@ from nose2.tools import params
 
 from logging_utilities.filters import ConstAttribute
 from logging_utilities.formatters.json_formatter import JsonFormatter
+from logging_utilities.formatters.json_formatter import basic_config
 
 # From python3.7, dict is ordered
 if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
@@ -805,7 +806,7 @@ class BasicJsonFormatterTest(unittest.TestCase):
             )
 
             try:
-                raise Exception("Error occurred")
+                raise Exception("Error occurred")  # pylint: disable=broad-exception-raised
             except Exception as err:  # pylint: disable=broad-except
                 logger.critical(
                     str(err),
@@ -861,3 +862,11 @@ class BasicJsonFormatterTest(unittest.TestCase):
                  "Stack isn't wished for here"),  # no stack_info because it wasn't configured
             ])
         )
+
+    def test_base_config_already_configure(self):
+        """
+        Test if base_config is skipped if already configured
+        """
+        self.assertEqual(len(logging.root.handlers), 1)
+        basic_config(level=logging.INFO)
+        self.assertNotIsInstance(logging.root.handlers[0], logging.StreamHandler)

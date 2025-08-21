@@ -66,10 +66,12 @@ disable=missing-docstring,
     unused-variable,
     pointless-string-statement,
     too-many-arguments,
+    too-many-positional-arguments,
     too-few-public-methods,
     useless-object-inheritance,
     consider-using-f-string,
-    use-list-literal
+    use-list-literal,
+    duplicate-code
 
 
 # Enable the message, report, category or checker with the given id(s). You can
@@ -520,6 +522,5 @@ min-public-methods=2
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "BaseException, Exception".
-overgeneral-exceptions=BaseException,
-                       Exception,
-                       StandardError
+overgeneral-exceptions=builtins.BaseException,
+                       builtins.Exception
