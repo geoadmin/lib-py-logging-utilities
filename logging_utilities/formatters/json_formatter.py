@@ -7,6 +7,7 @@ import warnings
 from collections import OrderedDict
 from collections.abc import Mapping
 from collections.abc import MutableMapping
+from contextlib import contextmanager
 from functools import partial
 from logging import BASIC_FORMAT
 from logging import PercentStyle as _PercentStyle
@@ -78,6 +79,26 @@ else:
 
     class StringTemplateStyle(_StringTemplateStyle, ValidateStyleMixin):
         validation_pattern = re.compile(r'{[a-z_]\w*}', re.I)
+
+
+# python3.7 logging introduced _lock, python3.13 removed _acquireLock/_releaseLock
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
+
+    @contextmanager
+    def logging_lock():
+        # pylint: disable=protected-access
+        with logging._lock:
+            yield
+else:
+
+    @contextmanager
+    def logging_lock():
+        # pylint: disable=protected-access,no-member
+        logging._acquireLock()
+        try:
+            yield
+        finally:
+            logging._releaseLock()
 
 
 class EnhancedPercentStyle(PercentStyle):
@@ -418,8 +439,7 @@ def basic_config(**kwargs):  # pragma: no cover
     # Add thread safety in case someone mistakenly calls
     # basic_config() from multiple threads
     # pylint: disable=protected-access
-    logging._acquireLock()
-    try:
+    with logging_lock():
         if len(logging.root.handlers) > 0:
             return
 
@@ -457,5 +477,3 @@ def basic_config(**kwargs):  # pragma: no cover
         if kwargs:
             keys = ', '.join(kwargs.keys())
             raise ValueError('Unrecognized argument(s): %s' % keys)
-    finally:
-        logging._releaseLock()
