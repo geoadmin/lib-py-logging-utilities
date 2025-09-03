@@ -2,6 +2,7 @@ import logging
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
+from threading import Thread
 
 from logging_utilities.context import get_logging_context
 from logging_utilities.context import remove_logging_context
@@ -124,6 +125,21 @@ class ThreadContextTest(unittest.TestCase):
         ctx = ThreadMappingContext()
         ctx.init({'a': 1, 'b': 2, 'c': 'my string'})
         self.assertEqual(str(ctx), "{'a': 1, 'b': 2, 'c': 'my string'}")
+
+    def test_thread_context_local_data(self):
+        ctx = ThreadMappingContext()
+        ctx['thread'] = 'main'
+        results = {}
+
+        def worker():
+            assert 'thread' not in ctx
+            ctx['thread'] = 'worker'
+
+        t = Thread(target=worker)
+        t.start()
+        t.join()
+
+        assert ctx['thread'] == 'main'
 
 
 class LoggingContextTest(unittest.TestCase):
