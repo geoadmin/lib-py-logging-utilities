@@ -3,6 +3,7 @@ import re
 import sys
 import warnings
 from collections import OrderedDict
+from types import GeneratorType
 
 from django.http import HttpRequest
 
@@ -10,8 +11,12 @@ from django.http import HttpRequest
 # in the same order as its definition
 if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
+    from contextvars import Token
 else:
     dictionary = OrderedDict
+
+    class Token:
+        pass
 
 
 def _pattern(text):
@@ -95,6 +100,8 @@ class JsonDjangoRequest(logging.Filter):
                 json_obj[key] = value
             elif isinstance(value, (bytes)):
                 json_obj[key] = str(value)
+            elif isinstance(value, (GeneratorType, Token)):
+                json_obj[key] = repr(value)
             else:
                 warnings.warn(
                     "Cannot jsonify key {} with value {}: unsupported type={}".format(
