@@ -110,6 +110,13 @@ make setup
 
 This will create a virtual python environment with all packages required for the development.
 
+Note that a Pipfile.lock is intentionally omitted, as the library uses only unpinned development dependencies and is designed to be compatible with multiple Python versions. The lockfile would unnecessarily restrict supported Python versions. If you need to test different python version, use:
+
+```bash
+make clean-all
+pipenv install --dev --python 3.10
+```
+
 Note that for pull request, the code **MUST BE** with `yapf` formatted and it also **MUST PASS** the linter. For this you can use the make targets:
 
 ```bash

@@ -130,6 +130,7 @@ clean: clean-venv
 	rm -rf build
 	rm -rf *.egg-info
 	rm -f .coverage
+	rm Pipfile.lock
 
 .PHONY: clean-all
 clean-all: clean
