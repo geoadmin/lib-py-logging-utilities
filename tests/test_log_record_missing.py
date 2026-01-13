@@ -2,6 +2,8 @@ import logging
 import unittest
 from logging import Formatter
 from logging import Logger
+from logging import getLogRecordFactory
+from logging import setLogRecordFactory
 
 from nose2.tools import params
 
@@ -130,3 +132,26 @@ class LoggerIgnoreMissingTest(unittest.TestCase):
                 'INFO:Composed message with extra:' + str(default)
             ]
         )
+
+    def test_logger_ignore_missing_keeps_chain(self):
+        original_factory = getLogRecordFactory()
+
+        def record_factory(*args, **kwargs):
+            record = original_factory(*args, **kwargs)
+            record.foo = 'bar'
+            return record
+
+        setLogRecordFactory(record_factory)
+
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            set_log_record_ignore_missing_factory()
+            logger = logging.getLogger('test_formatter')
+            self._configure_logging(
+                logger, "%(levelname)s:%(message)s:%(foo)s:%(missing_attribute)s"
+            )
+            logger.info('Simple message')
+            reset_log_record_factory()
+
+        self.assertEqual(ctx.output, [
+            'INFO:Simple message:bar:',
+        ])
