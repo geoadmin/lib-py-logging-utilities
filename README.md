@@ -313,6 +313,7 @@ You can change some behavior using the `JsonFormatter` constructor:
 | Parameter | Type | Default | Description                                       |
 |-----------|------|---------|---------------------------------------------------|
 | `fmt`       | dict | `{'levelname': 'levelname', 'name': 'name', 'message': 'message'}`  | Define the output format, see [Configure JSON Format](#configure-json-format) |
+| `fmtFile`   | string | `None`  | Path to a JSON file containing the `fmt` definition. This is an alternative to the `fmt` parameter. If both are provided, the `fmt` parameter will be merged with the `fmtFile` definition and will override conflicting values when necessary. |
 | `datefmt`   | string | `None`  | Date format for `asctime`, see [time.strftime()](https://docs.python.org/3.7/library/time.html#time.strftime) |
 | `style`     | string | `%`     | String formatting style, see [logging.Formatter](https://docs.python.org/3.7/library/logging.html#logging.Formatter) |
 | `add_always_extra` | bool |`False` | When `True`, logging extra (`logging.log('message', extra={'my-extra': 'some value'})`) are always added to the output. Otherwise they are only added if present in `fmt`. |
