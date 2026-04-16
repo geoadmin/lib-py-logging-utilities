@@ -124,6 +124,16 @@ _ENHANCED_STYLES = {
 }
 
 
+def deep_merge(a, b):
+    result = a.copy()
+    for k, v in b.items():
+        if k in result and isinstance(result[k], dictionary) and isinstance(v, dictionary):
+            result[k] = deep_merge(result[k], v)
+        else:
+            result[k] = v
+    return result
+
+
 class JsonFormatter(logging.Formatter):
     """Logging JSON Formatter
 
@@ -133,6 +143,7 @@ class JsonFormatter(logging.Formatter):
     def __init__(
         self,
         fmt=None,
+        fmtFile=None,
         datefmt=None,
         style='%',
         add_always_extra=False,
@@ -150,6 +161,10 @@ class JsonFormatter(logging.Formatter):
                     KEY   := key to use in the json output
                     VALUE := value to use in the json output, this can be either a static string,
                              a record attribute name or a format string
+            fmtFile: (string)
+                Path to a JSON file containing the fmt definition. This is an alternative to the fmt
+                parameter. If both are provided, the fmt parameter will be merged with the fmtFile
+                definition and will override conflicting values when necessary.
             datefmt: (string)
                 Format string for the date format
             style: (string)
@@ -181,8 +196,20 @@ class JsonFormatter(logging.Formatter):
         """
         super().__init__(datefmt=datefmt, style=style)
 
-        if fmt is None:
+        _fmt = None
+        if fmtFile is not None:
+            with open(fmtFile, 'r', encoding='utf-8') as file:
+                _fmt = json.load(file, object_pairs_hook=dictionary)
+
+        if fmt is not None and _fmt is not None:
+            fmt = deep_merge(_fmt, fmt)
+        elif fmt is not None:
+            pass
+        elif _fmt is not None:
+            fmt = _fmt
+        else:
             fmt = DEFAULT_FORMAT
+
         if style == '%':
             self._style_constructor = partial(
                 _ENHANCED_STYLES[style][0], ignore_missing=ignore_missing
