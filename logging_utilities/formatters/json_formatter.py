@@ -56,8 +56,7 @@ if sys.version_info.major >= 3 and sys.version_info.minor > 7:
     StrFormatStyle = _StrFormatStyle
     StringTemplateStyle = _StringTemplateStyle
     PercentStyle = _PercentStyle
-else:
-    # pragma: no cover
+else:  # pragma: no cover
     # Python version prior 3.8 don't have a validate() method on the Style class.
     class ValidateStyleMixin():
 
@@ -89,7 +88,7 @@ if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
         # pylint: disable=protected-access
         with logging._lock:
             yield
-else:
+else:  # pragma: no cover
 
     @contextmanager
     def logging_lock():
@@ -155,7 +154,7 @@ class JsonFormatter(logging.Formatter):
         """JSON Formatter constructor
 
         Args:
-            fmt: (dict)
+            fmt: (dict|string)
                 Format for the json output. It can be a string representing a json object or
                 a dictionary. The object defines the JSON output:
                     KEY   := key to use in the json output
@@ -196,19 +195,10 @@ class JsonFormatter(logging.Formatter):
         """
         super().__init__(datefmt=datefmt, style=style)
 
-        _fmt = None
+        fmt_from_file = None
         if fmtFile is not None:
             with open(fmtFile, 'r', encoding='utf-8') as file:
-                _fmt = json.load(file, object_pairs_hook=dictionary)
-
-        if fmt is not None and _fmt is not None:
-            fmt = deep_merge(_fmt, fmt)
-        elif fmt is not None:
-            pass
-        elif _fmt is not None:
-            fmt = _fmt
-        else:
-            fmt = DEFAULT_FORMAT
+                fmt_from_file = json.load(file, object_pairs_hook=dictionary)
 
         if style == '%':
             self._style_constructor = partial(
@@ -217,7 +207,7 @@ class JsonFormatter(logging.Formatter):
         else:
             self._style_constructor = _ENHANCED_STYLES[style][0]
         self._use_time = str(fmt).find('asctime') >= 0
-        self.json_fmt = self._parse_fmt(fmt)
+        self.json_fmt = self._parse_fmt(fmt, fmt_from_file)
         self.add_always_extra = add_always_extra
         self.filter_attributes = filter_attributes
         self.remove_empty = remove_empty
@@ -230,23 +220,33 @@ class JsonFormatter(logging.Formatter):
             set_log_record_ignore_missing_factory()
 
     @classmethod
-    def _parse_fmt(cls, fmt):
+    def _parse_fmt(cls, fmt, fmt_from_file):
+        fmt_dict = None
         if isinstance(fmt, str):
-            return json.loads(fmt, object_pairs_hook=dictionary)
-        if isinstance(fmt, (dictionary, OrderedDict)):
-            return fmt
-        if isinstance(fmt, dict):  # pragma no cover
+            fmt_dict = json.loads(fmt, object_pairs_hook=dictionary)
+        elif isinstance(fmt, (dictionary, OrderedDict)):
+            fmt_dict = fmt
+        elif isinstance(fmt, dict):  # pragma no cover
             warnings.warn(
                 "Current python version is lower than 3.7.0, the key's order of dict may be "
                 "different than the definition, please use `OrderedDict` instead.",
                 UserWarning
             )
-            return dictionary((k, fmt[k]) for k in sorted(fmt.keys()))
+            fmt_dict = dictionary((k, fmt[k]) for k in sorted(fmt.keys()))
+        elif fmt is not None:
+            raise TypeError(
+                '`{}` type is not supported, `fmt` must be json `str`, `OrderedDict` or `dict` type'
+                .format(type(fmt))
+            )  # pragma: no cover
 
-        raise TypeError(
-            '`{}` type is not supported, `fmt` must be json `str`, `OrderedDict` or `dict` type.'.
-            format(type(fmt))
-        )  # pragma: no cover
+        if fmt_from_file is not None and fmt_dict is not None:
+            fmt_dict = deep_merge(fmt_from_file, fmt_dict)
+        elif fmt_from_file is not None and fmt_dict is None:
+            fmt_dict = fmt_from_file
+
+        if fmt_dict is None:
+            return DEFAULT_FORMAT
+        return fmt_dict
 
     @classmethod
     def _add_extra_to_message(cls, extra, message):
