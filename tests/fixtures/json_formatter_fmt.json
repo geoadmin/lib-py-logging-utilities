@@ -1,0 +1,8 @@
+{
+    "levelname": "levelname",
+    "name": "name",
+    "message": "message",
+    "file": {
+        "name": "filename"
+    }
+}

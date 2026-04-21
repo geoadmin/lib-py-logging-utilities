@@ -28,6 +28,7 @@ class BasicJsonFormatterTest(unittest.TestCase):
         cls,
         logger,
         fmt=None,
+        fmt_file=None,
         add_always_extra=False,
         remove_empty=False,
         ignore_missing=False,
@@ -38,6 +39,7 @@ class BasicJsonFormatterTest(unittest.TestCase):
         for handler in logger.handlers:
             formatter = JsonFormatter(
                 fmt,
+                fmtFile=fmt_file,
                 add_always_extra=add_always_extra,
                 remove_empty=remove_empty,
                 ignore_missing=ignore_missing,
@@ -393,6 +395,43 @@ class BasicJsonFormatterTest(unittest.TestCase):
             message['stack_info'].startswith('Stack (most recent call last):\n'),
             msg='stack_info do not start with "Stack (most recent call last):\\n"'
         )
+
+    def test_fmt_as_file(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger, fmt=None, fmt_file='tests/fixtures/json_formatter_fmt.json'
+            )
+            logger.info('Simple Message')
+        message = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        self.assertListEqual(list(message.keys()), ['levelname', 'name', 'message', 'file'])
+        self.assertEqual(message['levelname'], 'INFO')
+        self.assertEqual(message['name'], 'test_formatter')
+        self.assertEqual(message['message'], 'Simple Message')
+        self.assertEqual(message['file'], {'name': 'test_json_formatter.py'})
+
+    def test_fmt_as_file_and_string(self):
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            logger = logging.getLogger('test_formatter')
+            self._configure_logger(
+                logger,
+                fmt='{"logger":"name","module":"module","message":"message",'
+                '"file":{"lineno":"lineno"}}',
+                fmt_file='tests/fixtures/json_formatter_fmt.json'
+            )
+            logger.info('Simple Message')
+        message = json.loads(ctx.output[0], object_pairs_hook=dictionary)
+        self.assertListEqual(
+            list(message.keys()), ['levelname', 'name', 'message', 'file', 'logger', 'module']
+        )
+        self.assertEqual(message['levelname'], 'INFO')
+        self.assertEqual(message['name'], 'test_formatter')
+        self.assertEqual(message['message'], 'Simple Message')
+        self.assertEqual(message['logger'], 'test_formatter')
+        self.assertEqual(message['module'], 'test_json_formatter')
+        self.assertListEqual(list(message['file'].keys()), ['name', 'lineno'])
+        self.assertEqual(message['file']['name'], 'test_json_formatter.py')
+        self.assertIsNotNone(message['file']['lineno'])
 
     def test_exception(self):
         with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
