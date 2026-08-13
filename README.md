@@ -1,6 +1,6 @@
 # Python logging utilities
 
-[![Build Status](https://travis-ci.org/geoadmin/lib-py-logging-utilities.svg?branch=master)](https://travis-ci.org/geoadmin/lib-py-logging-utilities)
+![Build Status](https://codebuild.eu-central-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiTGJzNVpFWUdESWd3c2VWUyt0M1NoYmY4MzVBTEtLZkFKa0FxRFhFa2lwS2JobEhkamR4T2E0ZlZ0OG1hekZrQjlhOWd4QmtydXZ4eHBmblJ3VDBKd3F3PSIsIml2UGFyYW1ldGVyU3BlYyI6ImZEQzE0Rzd6andXYUEyQy8iLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master)
 [![PyPI version](https://badge.fury.io/py/logging-utilities.svg)](https://badge.fury.io/py/logging-utilities)
 
 This package implements some useful logging utilities. Here below are the main features of the package:
@@ -17,31 +17,67 @@ All features can be fully configured from the configuration file.
 
 **NOTE:** only python 3 is supported
 
+:warning: **Version 5.x.x BREAKING CHANGES** see [Breaking Changes](#version-5xx-breaking-changes)
+
 ## Table of content
 
+- [Table of content](#table-of-content)
 - [Installation](#installation)
 - [Release and Publish](#release-and-publish)
 - [Contribution](#contribution)
+  - [Developer](#developer)
+- [Ignore missing log record attribute in formatter](#ignore-missing-log-record-attribute-in-formatter)
+  - [LogRecordIgnoreMissing](#logrecordignoremissing)
+- [Logging Context](#logging-context)
+  - [Logging Context example with Pyramid](#logging-context-example-with-pyramid)
 - [JSON Formatter](#json-formatter)
+  - [Configure JSON Format](#configure-json-format)
+  - [JSON Formatter Options](#json-formatter-options)
+  - [JSON Output - Type Consistency](#json-output---type-consistency)
 - [Extra Formatter](#extra-formatter)
+  - [Extra Formatter Constructor](#extra-formatter-constructor)
+  - [Extra Formatter Config Example](#extra-formatter-config-example)
 - [Flask Request Context](#flask-request-context)
+  - [Flask Request Context Filter Constructor](#flask-request-context-filter-constructor)
+  - [Flask Request Context Config Example](#flask-request-context-config-example)
 - [Jsonify Django Request](#jsonify-django-request)
+  - [Usage](#usage)
+  - [Django Request Filter Constructor](#django-request-filter-constructor)
+  - [Django Request Config Example](#django-request-config-example)
+- [Filter out LogRecord attributes based on their types](#filter-out-logrecord-attributes-based-on-their-types)
+  - [Attribute Type Filter Constructor](#attribute-type-filter-constructor)
+  - [Attribute Type Filter Config Example](#attribute-type-filter-config-example)
 - [ISO Time with Timezone](#iso-time-with-timezone)
+  - [ISO Time Filter Constructor](#iso-time-filter-constructor)
+  - [ISO Time Config Example](#iso-time-config-example)
 - [Constant Record Attribute](#constant-record-attribute)
+  - [Constant Record Attribute Config Example](#constant-record-attribute-config-example)
 - [Logger Level Filter](#logger-level-filter)
+  - [Logger Level Filter Constructor](#logger-level-filter-constructor)
+  - [Logger Level Filter Config Example](#logger-level-filter-config-example)
+- [Django middleware request context](#django-middleware-request-context)
+- [Log thread context](#log-thread-context)
 - [Basic Usage](#basic-usage)
   - [Case 1. Simple JSON Output](#case-1-simple-json-output)
   - [Case 2. JSON Output Configured within Python Code](#case-2-json-output-configured-within-python-code)
   - [Case 3. JSON Output Configured with a YAML File](#case-3-json-output-configured-with-a-yaml-file)
   - [Case 4. Add Flask Request Context Attributes to JSON Output](#case-4-add-flask-request-context-attributes-to-json-output)
   - [Case 5. Add Django Request to JSON Output](#case-5-add-django-request-to-json-output)
-  - [Case 6. Add all Log Extra as Dictionary to the Standard Formatter](#case-6-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
-  - [Case 7. Add Specific Log Extra to the Standard Formatter](#case-7-add-specific-log-extra-to-the-standard-formatter)
+  - [Case 6. Add parts of Django Request to JSON Output](#case-6-add-parts-of-django-request-to-json-output)
+  - [Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)](#case-7-add-all-log-extra-as-dictionary-to-the-standard-formatter-including-django-log-extra)
+  - [Case 8. Add Specific Log Extra to the Standard Formatter](#case-8-add-specific-log-extra-to-the-standard-formatter)
+  - [Case 9. Django add request info to all log records](#case-9-django-add-request-info-to-all-log-records)
+  - [Case 10. Add stack traces to log records](#case-10-add-stack-traces-to-log-records)
+- [Breaking Changes](#breaking-changes)
+  - [Version 5.x.x Breaking Changes](#version-5xx-breaking-changes)
+  - [Version 4.x.x Breaking Changes](#version-4xx-breaking-changes)
+  - [Version 3.x.x Breaking Changes](#version-3xx-breaking-changes)
+  - [Version 2.x.x Breaking Changes](#version-2xx-breaking-changes)
 - [Credits](#credits)
 
 ## Installation
 
-__logging_utilities__ is available on PyPI.
+**logging_utilities** is available on PyPI.
 
 Use pip to install:
 
@@ -51,22 +87,12 @@ pip install logging-utilities
 
 ## Release and Publish
 
-Only owners are allowed to publish a new version to PyPI. To publish a new version follow the procedure below:
+New release and publish on PyPI is done automatically upon PR merge into `master` branch. For bug fixes and small new features,
+PR can be directly open on `master`. Then the PR title define the version bump as follow:
 
-1. Increase the `VERSION` in `logging_utilities/__init__.py`
-    - Major version for outbreak changes in the user interface (no backward compatibility)
-    - Minor version for new features
-    - Patch version for bug fixes
-    - For alpha version append `alpha1` to `VERSION`
-1. Commit and push the changes to `develop` branch
-1. Merge `develop` to  `master`
-1. From `master` branch enter
-
-    ```shell
-    summon -p gopass -u make publish
-    ```
-
-**NOTE**: this requires to have `summon`, `gopass` and the correct `secrets.yml` file in a parent folder.
+- PR title and/or commit message contains `#major` => major version is bumped
+- PR title and/or commit message contains `#patch` or head branch name starts with `bug-|hotfix-|bugfix-` => patch version is bumped
+- Otherwise by default the minor version is bumped
 
 ## Contribution
 
@@ -84,6 +110,13 @@ make setup
 
 This will create a virtual python environment with all packages required for the development.
 
+Note that a Pipfile.lock is intentionally omitted, as the library uses only unpinned development dependencies and is designed to be compatible with multiple Python versions. The lockfile would unnecessarily restrict supported Python versions. If you need to test different python version, use:
+
+```bash
+make clean-all
+pipenv install --dev --python 3.10
+```
+
 Note that for pull request, the code **MUST BE** with `yapf` formatted and it also **MUST PASS** the linter. For this you can use the make targets:
 
 ```bash
@@ -95,9 +128,161 @@ make format-lint
 
 Any new feature should have its unittest class in order to be tested.
 
+## Ignore missing log record attribute in formatter
+
+When configuring a log formatter you can provide via print style any log record attribute including extra attributes. However when using extra attribute, if this attribute is then missing (e.g. because the logger did not add that extra)
+then the logging would raise a `ValueError: Formatting field not found in record: ...`.
+
+For the standard Formatter you could use the [Extra Formatter](#extra-formatter), but if you have any other Formatter you
+can use the global `logging_utilities.log_record.set_log_record_ignore_missing_factory()` method.
+
+### LogRecordIgnoreMissing
+
+The `LogRecordIgnoreMissing` factory can be used to avoid `ValueError` exception when formatting a log message from
+a log record that don't have the extra required by the formatter.
+
+For example:
+
+```python
+import logging
+
+logging.basicConfig(format="%(message)s - %(extra_param)s", level=logging.INFO, force=True)
+
+logger = logging.getLogger('my-logger')
+
+logger.info('My message', extra={'extra_param': 20})
+My message - 20
+
+logger.info('My second message')
+--- Logging error ---
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/logging/__init__.py", line 440, in format
+    return self._format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 436, in _format
+    return self._fmt % record.__dict__
+KeyError: 'extra_param'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/logging/__init__.py", line 1085, in emit
+    msg = self.format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 929, in format
+    return fmt.format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 671, in format
+    s = self.formatMessage(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 640, in formatMessage
+    return self._style.format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 442, in format
+    raise ValueError('Formatting field not found in record: %s' % e)
+ValueError: Formatting field not found in record: 'extra_param'
+...
+```
+
+To avoid such crash you can use `LogRecordIgnoreMissing` that will replace missing extra attributes by an empty string in the message.
+
+```python
+import logging
+from logging_utilities.log_record import LogRecordIgnoreMissing
+
+logging.setLogRecordFactory(LogRecordIgnoreMissing)
+
+logging.basicConfig(format="%(message)s - %(extra_param)s", level=logging.INFO, force=True)
+
+logger = logging.getLogger('my-logger')
+
+logger.info('My message', extra={'extra_param': 20})
+My message - 20
+
+logger.info('My second message')
+My second message -
+```
+
+You can also change the default value by using the helper `set_log_record_ignore_missing_factory()`
+
+```python
+import logging
+from logging_utilities.log_record import set_log_record_ignore_missing_factory
+
+set_log_record_ignore_missing_factory('my-default')
+
+logging.basicConfig(format="%(message)s - %(extra_param)s", level=logging.INFO, force=True)
+
+logger = logging.getLogger('my-logger')
+
+logger.info('My message', extra={'extra_param': 20})
+My message - 20
+
+logger.info('My second message')
+My second message - my-default
+```
+
+:warning: **NOTE that setting the log record factory is a global action that affects every logger and formatter**
+
+## Logging Context
+
+With `set_logging_context()` you can add a thread based context to every log record. This can be quite usefull if
+you want to globally set a context to every log record, for example a Request context in a Pyramid/Django application.
+
+### Logging Context example with Pyramid
+
+In a [Pyramid](https://docs.pylonsproject.org/projects/pyramid/en/2.0-branch/index.html) application it is quite usefull to
+add to every log record the Request context. This can be done as follow:
+
+```python
+# module my_app.logging_tweens
+from logging_utilities.context import set_logging_context
+
+
+def logging_context_tween(handler, registry):
+
+    def _logging_context_tween(request):
+        set_logging_context({
+            "request": {
+                "method": request.method,
+                "path": request.path,
+                "headers": dict(request.headers)
+            }
+        })
+        return handler(request)
+
+    return _logging_context_tween
+
+# MAIN
+import logging
+from wsgiref.simple_server import make_server
+from pyramid.config import Configurator
+from pyramid.response import Response
+
+logging.basicConfig(format="%(message)s - %(context)s")
+
+logger = logging.getLogger(__name__)
+
+def hello_world(request):
+    logger.debug('Request for hello world')
+    return Response('Hello World!')
+
+if __name__ == '__main__':
+    with Configurator() as config:
+        # Register the tween
+        config.add_tween('my_app.logging_tweens.logging_context_tween')
+
+        # Configure the route and view
+        config.add_route('hello', '/')
+        config.add_view(hello_world, route_name='hello')
+        app = config.make_wsgi_app()
+    server = make_server('0.0.0.0', 6543, app)
+    server.serve_forever()
+
+# A GET / request would produce the following log
+'Request for hello world - {"request": {"method": "GET", "path": "/", "headers": {}}}'
+```
+
+For more information on Pyramid Tweens see [Registering Tween](https://docs.pylonsproject.org/projects/pyramid/en/2.0-branch/narr/hooks.html#registering-tweens)
+
 ## JSON Formatter
 
-**JsonFormatter** is a python logging formatter that transform the log output into a json object.
+**JsonFormatter** is a python logging formatter that transforms the log output into a json object.
 
 JSON log format is quite useful especially when the logs are sent to **LogStash**.
 
@@ -109,12 +294,17 @@ The format can be configured either using the `format` config parameter or the `
 
 | Value        | Type   | Transformation        | Example        |
 ---------------|--------|-----------------------|----------------|
-| attribute    | string | The string is a _LogRecord_ attribute name,<br/>then the value of this attribute is used as output. | `"message"` |
-| str format   | string | The string contains named string format,<br/>each named format are replaced by the corresponding <br/>_LogRecord_ attribute value. | `"%(asctime)s.%(msecs)s"` |
-| object | dict | The object is embedded in the output with its value<br/>following the same rules as defined in this table. | `{"lineno": "lineno", "file": "filename"}` |
-| array | list | The list is embedded as an _array_ in the output.<br>Each value is processed using the rules from this table | `["created", "asctime"]` |
+| `LogRecord` attribute  | string | The string is a `LogRecord` attribute name,<br/>then the value of this attribute is used as output. See also [Type Consistency](#json-output---type-consistency). | `"message"` |
+| `LogRecord` attribute dotted key | string | The string is a dotted key to access a sub key of a `LogRecord` dictionary attribute.<br/>For example if the `LogRecord` contains a dictionary attribute added via an `extra`, you can use the dotted notation to access only a sub object/value of this dictionary. Note if the dotted key attribute doesn't exists it will raise a `ValueError` unless you set `ignore_missing=True` in the Formatter config. In the latest case missing attribute will be replaced by `''` unless the dotted key has a trailing `.` then the default value will be `{}` instead of `''`.<br/>See also [Type Consistency](#json-output---type-consistency). | `"request.path"` |
+| Named string format   | string | The string contains named string format,<br/>each named format are replaced by the corresponding <br/>_LogRecord_ attribute value.<br/>When using the `%` string formatting style, you can also used dotted notation to access dictionary sub-key; `%(request.headers)s`. NOTE that in string format the dictionary key must be a valid python attribute name (cannot contain spaces or special characters). | `"%(asctime)s.%(msecs)s"` |
+| Object | dict | The object is embedded in the output with its value<br/>following the same rules as defined in this table. | `{"lineno": "lineno", "file": "filename", "id": "%(process)x/%(thread)x", "message": "message"}` |
+| Array | list | The list is embedded as an _array_ in the output.<br>Each value is processed using the rules from this table | `["created", "asctime", "message", "%(process)x/%(thread)x"]` |
+
+:warning: **If the value doesn't match any of the table above it will raise a `ValueError` unless you specify `ignore_missing=True` in the configuration**
 
 You can find the _LogRecord_ attributes list in [Python Doc](https://docs.python.org/3.7/library/logging.html#logrecord-attributes)
+
+See below the [Basic Usage](#basic-usage) for more examples.
 
 ### JSON Formatter Options
 
@@ -122,12 +312,14 @@ You can change some behavior using the `JsonFormatter` constructor:
 
 | Parameter | Type | Default | Description                                       |
 |-----------|------|---------|---------------------------------------------------|
-| `fmt`       | dict | `None`  | Define the output format, see [Configure JSON Format](#configure-json-format) |
+| `fmt`       | dict | `{'levelname': 'levelname', 'name': 'name', 'message': 'message'}`  | Define the output format, see [Configure JSON Format](#configure-json-format) |
+| `fmtFile`   | string | `None`  | Path to a JSON file containing the `fmt` definition. This is an alternative to the `fmt` parameter. If both are provided, the `fmt` parameter will be merged with the `fmtFile` definition and will override conflicting values when necessary. |
 | `datefmt`   | string | `None`  | Date format for `asctime`, see [time.strftime()](https://docs.python.org/3.7/library/time.html#time.strftime) |
 | `style`     | string | `%`     | String formatting style, see [logging.Formatter](https://docs.python.org/3.7/library/logging.html#logging.Formatter) |
 | `add_always_extra` | bool |`False` | When `True`, logging extra (`logging.log('message', extra={'my-extra': 'some value'})`) are always added to the output. Otherwise they are only added if present in `fmt`. |
 | `filter_attributes` | list | `None` | When the formatter is used with a _Logging.Filter_ that adds _LogRecord_ attributes, they can be listed here to avoid to be treated as logging _extra_. |
 | `remove_empty` | bool | `False` | When `True`, empty values (empty list, dict, None or empty string) are removed from output. |
+| `ignore_missing` | bool | `False` | If `True`, then all extra attributes from the log record that are missing (accessed by the `fmt` parameter) will be replaced by an empty string instead of raising a ValueError exception. **NOTE:** This has an impact on all formater not only on this one, see [LogRecordIgnoreMissing](#logrecordignoremissing). |
 
 The constructor parameters can be also be specified in the log configuration file using the `()` class specifier instead of `class`:
 
@@ -143,6 +335,55 @@ formatters:
       module: module
       message: message
 ```
+
+**:warning: When using the INI file format like documented [here](https://docs.python.org/3.9/library/logging.config.html#logging-config-fileformat), you cannot use the JSON formatter options describe above and have to use the formatter using the `class`, `format`, `datefmt` and `style` attributes like below**
+
+```ini
+[formatters]
+keys = my_json
+
+[formatter_my_json]
+class = logging_utilities.formatters.json_formatter.JsonFormatter
+format: {
+        "time": "asctime",
+        "level": "levelname",
+        "logger": "name",
+        "module": "module",
+        "function": "funcName",
+        "pid_tid": "%(process)x/%(thread)x",
+        "message": "message",
+        "exc_info": "exc_info"
+    } # OPTIONAL
+datefmt = %Y-%m-%d %H:%M # OPTIONAL
+style = % # OPTIONAL
+```
+
+### JSON Output - Type Consistency
+
+When you use `ignore_missing=True`, all missing attributes from the log record will be replaced by an empty string. This can be an issue if you require type consistency accross JSON logs. To avoid this, you can use the trailing dot notation.
+
+||||
+|---|---|---|
+| Single trailing dot | `attribute_name.`  | Default to `{}` when `attribute_name` is missing from log record |
+| Double trailing dot | `attribute_name..` | Default to `[]` when `attribute_name` is missing from log record |
+
+This is quite usefull if you want to add a list or an object in your JSON from a LogRecord that might be missing. For example when using the [Flask Request Context](#flask-request-context) and you want to add the headers dictionary as object, you can do as follow:
+
+```python
+fmt={"message": "message", "request": {"headers": "flask_request_headers."}}
+```
+
+This way if the log record is outside a Flask request, your log output would be
+
+`{"message": "this is the message", "request": {"headers": {}}}`
+
+instead of
+
+`{"message": "this is the message", "request": {"headers": ""}}`
+
+and when the record is within a Flask context you will have
+
+`{"message": "this is the message", "request": {"headers": {"Host": "www.example.com", ...}}}`
 
 ## Extra Formatter
 
@@ -189,9 +430,9 @@ formatters:
 
 ## Flask Request Context
 
-When using logging within a [Flask](https://flask.palletsprojects.com/en/1.1.x/) application, you can use this _Filter_ to add some context attributes to all _LogRecord_.
+When using logging within a [Flask](https://flask.palletsprojects.com/en/2.1.x/) application, you can use this _Filter_ to add some context attributes to all _LogRecord_.
 
-All _Flask Request_ attributes are supported and they are added as _LogRecord_ with the `flask_request_` prefix.
+All _Flask Request_ attributes are supported and they are added as _LogRecord_ with the `flask_request_` prefix. See [Flask Request](https://flask.palletsprojects.com/en/2.1.x/api/#flask.Request) for more details on available attributes.
 
 ### Flask Request Context Filter Constructor
 
@@ -202,6 +443,14 @@ All _Flask Request_ attributes are supported and they are added as _LogRecord_ w
 ### Flask Request Context Config Example
 
 ```yaml
+version: 1
+
+root:
+  handlers:
+    - console
+  level: DEBUG
+  propagate: True
+
 filters:
   flask:
     (): logging_utilities.filters.flask_attribute.FlaskRequestAttribute
@@ -209,32 +458,49 @@ filters:
       - url
       - method
       - headers
-      - remote_addr
       - json
+
+formatters:
+  console:
+    format: "%(asctime)s - %(message)s - %(flask_request_url)s %(flask_request_method)s %(flask_request_headers)s: %(flask_request_json)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: console
+    stream: ext://sys.stdout
+    filters:
+      - flask
 ```
 
 **NOTE**: `FlaskRequestAttribute` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
 
 ## Jsonify Django Request
 
-If you want to log the [Django](https://www.djangoproject.com/) [HttpRequest](https://docs.djangoproject.com/en/3.1/ref/request-response/#httprequest-objects) object using the [JSON Formatter](#json-formatter), this filter is for made for you. It converts the `record.request` attribute to a valid json object or a string if the attribute is not an `HttpRequest` instance. It is also useful when using Django with the JSON Formatter because Django adds in some of its logs either an HttpRequest object to the log extra or a socket object.
+If you want to log the [Django](https://www.djangoproject.com/) [HttpRequest](https://docs.djangoproject.com/en/3.1/ref/request-response/#httprequest-objects) object using the [JSON Formatter](#json-formatter), this filter is for made for you. It converts the `record.http_request` attribute (or the attribute specified by `attr_key` in the constructor) to a valid json object if it is of type `HttpRequest`.
 
 The `HttpRequest` attributes that are converted can be configured using the `include_keys` and/or `exclude_keys` filter parameters. This can be useful if you want to limit the log data, for example if you don't want to log Authentication headers.
+
+:warning: The django framework adds sometimes an HttpRequest or socket object under `record.request` when
+logging. So if you decide to use the attribute name `request` for this filter, beware that you
+will need to handle the case where the attribute is of type `socket` separately, for example by
+filtering it out using the attribute type filter. (see example [Filter out LogRecord attributes based on their types](#filter-out-logrecord-attributes-based-on-their-types))
 
 ### Usage
 
 Add the filter to the log handler and then add simply the `HttpRequest` to the log extra as follow:
 
 ```python
-logger.info('My message', extra={'request': request})
+logger.info('My message', extra={'http_request': request})
 ```
 
 ### Django Request Filter Constructor
 
 | Parameter      | Type | Default | Description                                    |
 |----------------|------|---------|------------------------------------------------|
-| `include_keys` | list | None    | All request attributes that match any of the dotted keys of the list will be jsonify in the `record.request`. When `None` then all attributes are added (default behavior). |
-| `exclude_keys` | list | None    | All request attributes that match any of the dotted keys of the list will not be added to the jsonify of the `record.request`. **NOTE** this has precedence to `include_keys` which means that if a key is in both list, then it is not added. |
+| `include_keys` | list | None    | All request attributes that match any of the dotted keys of the list will be added to the jsonifiable object. When `None` then all attributes are added (default behavior). |
+| `exclude_keys` | list | None    | All request attributes that match any of the dotted keys of the list will not be added to the jsonifiable object. **NOTE** this has precedence to `include_keys` which means that if a key is in both lists, then it is not added. |
+|  `attr_key`    | str  | `http_request` | The name of the attribute that stores the HttpRequest object. It will be replaced in place by a jsonifiable dict representing this object. (Note that django sometimes stores an `HttpRequest` under `attr_key: request`. This is however not the default as django also stores other types of objects under this attribute name.)
 
 ### Django Request Config Example
 
@@ -242,16 +508,45 @@ logger.info('My message', extra={'request': request})
 filters:
   django:
     (): logging_utilities.filters.django_request.JsonDjangoRequest
+    attr_key: 'http_request' # This is the default, so it can be omitted
     include_keys:
-      - request.META.REQUEST_METHOD
-      - request.META.SERVER_NAME
-      - request.environ
+      - http_request.META.REQUEST_METHOD
+      - http_request.META.SERVER_NAME
+      - http_request.environ
     exclude_keys:
-      - request.META.SERVER_NAME
-      - request.environ.wsgi
+      - http_request.META.SERVER_NAME
+      - http_request.environ.wsgi
 ```
 
 **NOTE**: `JsonDjangoRequest` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
+
+## Filter out LogRecord attributes based on their types
+
+If different libraries or different parts of your code log different object types under the same
+logRecord extra attribute, you can use this filter to keep only some of them (whitelist mode) or filter out
+some of them (blacklist mode).
+
+### Attribute Type Filter Constructor
+
+| Parameter       |             Type                    | Default | Description                 |
+|-----------------|-------------------------------------|---------|-----------------------------|
+|`typecheck_list` | dict(key, type\|list of types)| None   | A dictionary that maps keys to a type or a list of types. By default, it will only keep a parameter matching a key if the types match or if any of the types in the list match (white list). If in black list mode, it will only keep a parameter if the types don't match. Parameters not appearing in the dict will be ignored and passed though regardless of the mode (whitelist or blacklist).
+| `is_blacklist`  | bool                                | false   | Whether the list passed should be a blacklist or a whitelist. To use both, simply include this filter two times, one time with this parameter set true and one time with this parameter set false.
+
+### Attribute Type Filter Config Example
+
+```yaml
+filters:
+  type_filter:
+    (): logging_utilities.filters.attr_type_filter.AttrTypeFilter
+    is_blacklist: False # Default value is false, so this could be left out
+    typecheck_list:
+      # For each attribute listed, one type or a list of types can be specified
+      request: # can only be a toplevel attribute (no dotted keys allowed)
+        - django.http.request.HttpRequest # Can be a class name only or the full dotted path
+        - builtins.dict
+      my_attr: myClass
+```
 
 ## ISO Time with Timezone
 
@@ -338,6 +633,41 @@ handlers:
 
 **NOTE**: `LevelFilter` only support the special key `'()'` factory in the configuration file (it doesn't work with the normal `'class'` key).
 
+## Django middleware request context
+
+`AddToThreadContextMiddleware` is a [Middleware](https://docs.djangoproject.com/en/5.1/topics/http/middleware/) with which you can add the [Django](https://www.djangoproject.com/) [HttpRequest](https://docs.djangoproject.com/en/5.1/ref/request-response/#httprequest-objects) to thread local variables. The request object is added to a global variable in `logging_utilities.thread_context` and can be accessed in the following way:
+
+```python
+from logging_utilities.thread_context import thread_context
+
+getattr(thread_context, 'request')
+```
+
+## Log thread context
+
+`AddThreadContextFilter` provides a logging filter that will add data from the thread local store `logging_utilities.thread_context` to the log record. To set data on the thread store do the following:
+
+```python
+from logging_utilities.thread_context import thread_context
+
+setattr(thread_context, 'key', data)
+```
+
+Configure the filter to decide which data should be added and how it should be named:
+
+```yaml
+filters:
+  add_request:
+    (): logging_utilities.filters.add_thread_context_filter.AddThreadContextFilter
+    contexts:
+    - logger_key: log_record_key
+      context_key: key
+```
+
+| Parameter  | Type | Default | Description                                    |
+|------------|------|---------|------------------------------------------------|
+| `contexts` | list | empty   | List of values to add to the log record. Dictionary must contain value for 'context_key' to read value from thread local variable. Dictionary must also contain 'logger_key' to set the value on the log record. |
+
 ## Basic Usage
 
 ### Case 1. Simple JSON Output
@@ -410,7 +740,24 @@ test()
 output:
 
 ```shell
-{"Name": "root", "Levelno": 20, "Levelname": "INFO", "Pathname": "test.py", "Filename": "test.py", "Module": "test", "Lineno": 75, "FuncName": "test", "Created": 1588185267.3198836, "Asctime": "2020-04-30 02:34:27,319", "Msecs": 319.8835849761963, "RelativeCreated": 88.2880687713623, "Thread": 16468, "ThreadName": "MainThread", "Process": 16828, "Message": "test string format"}
+{
+  "Name": "root", 
+  "Levelno": 20, 
+  "Levelname": "INFO", 
+  "Pathname": "test.py", 
+  "Filename": "test.py", 
+  "Module": "test", 
+  "Lineno": 75, 
+  "FuncName": "test", 
+  "Created": 1588185267.3198836, 
+  "Asctime": "2020-04-30 02:34:27,319", 
+  "Msecs": 319.8835849761963, 
+  "RelativeCreated": 88.2880687713623, 
+  "Thread": 16468, 
+  "ThreadName": "MainThread", 
+  "Process": 16828, 
+  "Message": "test string format"
+}
 ```
 
 ### Case 3. JSON Output Configured with a YAML File
@@ -468,7 +815,16 @@ root.info('Test file config')
 output:
 
 ```shell
-{"function": "<module>", "level": "INFO", "logger": "root", "message": "Test file config", "module": "<stdin>", "process": 12264, "thread": 139815989413696, "time": "asctime"}
+{
+  "function": "<module>", 
+  "level": "INFO", 
+  "logger": "root", 
+  "message": "Test file config", 
+  "module": "<stdin>", 
+  "process": 12264, 
+  "thread": 139815989413696, 
+  "time": "asctime"
+}
 ```
 
 ### Case 4. Add Flask Request Context Attributes to JSON Output
@@ -508,11 +864,16 @@ formatters:
       process: process
       thread: thread
       request:
-        url: flask_request_url
-        method: flask_request_method
-        headers: flask_request_headers
-        data: flask_request_json
-        remote: flask_request_remote_addr
+        # We use the "%()s" notation here to ensure a string output and also if the LogRecord has
+        # no flask context, meaning no `flask_request_url` attribute, the "%()s" notation ensure
+        # to have an empty string instead of treating `flask_request_url` as a string constant.
+        url: "%(flask_request_url)s"
+        method: "%(flask_request_method)s"
+        # We use a trailing dot here to ensure to have a dictionary output even if the LogRecord 
+        # doesn't have a flask_request_headers attribute.
+        headers: flask_request_headers.
+        data: flask_request_json.
+        remote: "%(flask_request_remote_addr)s"
       message: message
 
 handlers:
@@ -534,6 +895,7 @@ import logging
 import logging.config
 
 import yaml
+from flask import Flask
 
 
 config = {}
@@ -542,14 +904,37 @@ with open('example-config.yaml', 'r') as fd:
 
 logging.config.dictConfig(config)
 
+app = Flask('test')
+
 root = logging.getLogger()
-root.info('Test file config')
+
+with app.test_request_context("path/test", method='GET', headers={"Accept": "*/*"}):
+  root.info('Test file config')
 ```
 
 output:
 
 ```shell
-{"function": "<module>", "level": "INFO", "logger": "root", "message": "Test file config", "module": "<stdin>", "process": 24190, "request": {"url": "", "method": "", "headers": "", "data": "", "remote": ""}, "thread": 140163374577472, "time": "isotime"}
+{
+  "time": "2022-07-20T10:09:10.765237+02:00", 
+  "level": "INFO",
+  "logger": "root", 
+  "module": "<stdin>", 
+  "function": "<module>", 
+  "process": 58043, 
+  "thread": 139717802334016, 
+  "request": {
+    "url": "http://localhost/path/test", 
+    "method": "GET", 
+    "headers": {
+      "Host": "localhost", 
+      "Accept": "*/*"
+    }, 
+    "data": null, 
+    "remote": null
+  }, 
+  "message": "Test file config"
+}
 ```
 
 ### Case 5. Add Django Request to JSON Output
@@ -571,12 +956,12 @@ filters:
   django:
     (): logging_utilities.filters.django_request.JsonDjangoRequest
     include_keys:
-      - request.path
-      - request.method
-      - request.headers
+      - http_request.path
+      - http_request.method
+      - http_request.headers
     exclude_keys:
-      - request.headers.Authorization
-      - request.headers.Proxy-Authorization
+      - http_request.headers.Authorization
+      - http_request.headers.Proxy-Authorization
 
 formatters:
   json:
@@ -589,7 +974,7 @@ formatters:
       function: funcName
       process: process
       thread: thread
-      request: request
+      request: http_request
       response: response
       message: message
 
@@ -640,10 +1025,35 @@ my_page(factory.get('/my_page?test=true'))
 output:
 
 ```shell
-{"function": "my_page", "level": "INFO", "logger": "your_logger", "message": "My page requested", "module": "<stdin>", "process": 20421, "request": {"method": "GET", "path": "/my_page", "headers": {"Cookie": ""}}, "response": {"success": true}, "thread": 140433370822464, "time": "2020-10-12T16:44:45.374508+02:00"}
+{
+  "function": "my_page", 
+  "level": "INFO", 
+  "logger": "your_logger", 
+  "message": "My page requested", 
+  "module": "<stdin>", 
+  "process": 20421, 
+  "request": {
+    "method": "GET", 
+    "path": "/my_page", 
+    "headers": {
+      "Cookie": ""
+    }
+  }, 
+  "response": {
+    "success": true
+  }, 
+  "thread": 140433370822464, 
+  "time": "2020-10-12T16:44:45.374508+02:00"
+}
 ```
 
-### Case 6. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)
+### Case 6. Add parts of Django Request to JSON Output
+
+Let's say you want to log parts of the django `HttpRequest` in Json format. Django already logs it
+sometimes under `record.request` so you can use the django request filter to transform it to a jsonisable
+dictionary. However django sometimes also logs an object of type `socket.socket` that you may not
+want to include in the logs. In this case you could use the following configuration. This will only
+keep the request attribute if it is of type `HttpRequest`.
 
 config.yaml
 
@@ -657,10 +1067,137 @@ root:
   propagate: True
 
 filters:
+  type_filter:
+    (): logging_utilities.filters.attr_type_filter.AttrTypeFilter
+    typecheck_list:
+      request: django.http.request.HttpRequest
   isotime:
     (): logging_utilities.filters.TimeAttribute
   django:
     (): logging_utilities.filters.django_request.JsonDjangoRequest
+    attr_name: request
+    include_keys:
+      - request.path
+      - request.method
+      - request.headers
+
+formatters:
+  json:
+    class: logging_utilities.formatters.json_formatter.JsonFormatter
+    format:
+      time: isotime
+      level: levelname
+      logger: name
+      module: module
+      function: funcName
+      process: process
+      thread: thread
+      request_path: request.path
+      request_method: request.method
+      request:
+        # NOTE: django headers name are case sensitive
+        header.accept: request.headers.Accept
+        header.accept-encoding: request.headers.Accept-Encoding 
+        header.accept_language: request.headers.Accept-Language 
+      message: message
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: json
+    stream: ext://sys.stdout
+    filters:
+      - isotime
+      # Typefilter must be before django filter, as the django filter
+      # will modify the type of the "HttpRequest" object
+      - type_filter
+      - django
+```
+
+**NOTE:** This require to have `django` package installed otherwise it raises `ImportError`
+
+Then in your python code use it as follow:
+
+```python
+import logging
+import logging.config
+
+import yaml
+
+from django.http import JsonResponse
+from django.conf import settings
+from django.test import RequestFactory
+
+
+config = {}
+with open('example-config.yaml', 'r') as fd:
+    config = yaml.safe_load(fd.read())
+
+logging.config.dictConfig(config)
+
+logger = logging.getLogger('your_logger')
+
+def my_page(request):
+    answer = {'success': True}
+    logger.info('My page requested', extra={'request': request})
+    return JsonResponse(answer)
+
+settings.configure()
+factory = RequestFactory()
+
+my_page(factory.get(
+    '/my_page?test=true', 
+    HTTP_ACCEPT='*/*', 
+    HTTP_ACCEPT_ENCODING='gzip', 
+    HTTP_ACCEPT_LANGUAGE='en')
+)
+```
+
+output:
+
+```shell
+{
+  "time": "2022-07-20T12:29:19.536922+02:00",
+  "level": "INFO",
+  "logger": "your_logger",
+  "module": "<stdin>",
+  "function": "my_page",
+  "process": 78479,
+  "thread": 139751209555776,
+  "request_path": "/my_page",
+  "request_method": "GET",
+  "request": {
+    "header.accept": "*/*",
+    "header.accept-encoding": "gzip",
+    "header.accept_language": "en"
+  },
+  "message": "My page requested"
+}
+```
+
+### Case 7. Add all Log Extra as Dictionary to the Standard Formatter (including Django log extra)
+
+config.yaml
+
+```yaml
+version: 1
+
+root:
+  handlers:
+    - console
+  level: DEBUG
+  propagate: True
+
+filters:
+  type_filter:
+    (): logging_utilities.filters.attr_type_filter.AttrTypeFilter
+    typecheck_list:
+      request: django.http.request.HttpRequest
+  isotime:
+    (): logging_utilities.filters.TimeAttribute
+  django:
+    (): logging_utilities.filters.django_request.JsonDjangoRequest
+    attr_name: request
     include_keys:
       - request.path
       - request.method
@@ -687,6 +1224,8 @@ handlers:
     stream: ext://sys.stdout
     filters:
       - isotime
+      # Type filter must be before django filter
+      - type_filter
       - django
 ```
 
@@ -735,7 +1274,7 @@ output:
   'response': {'success': True}}
 ```
 
-### Case 7. Add Specific Log Extra to the Standard Formatter
+### Case 8. Add Specific Log Extra to the Standard Formatter
 
 config.yaml
 
@@ -788,6 +1327,120 @@ output:
 2020-11-19 13:42:29,424 - DEBUG - your_logger - My log with extras - extra1=23
 ```
 
+### Case 9. Django add request info to all log records
+
+Combine the use of the middleware `AddToThreadContextMiddleware` with the filters `AddThreadContextFilter` and `JsonDjangoRequest`, as well as the `JsonFormatter` to add request context to each log entry.
+
+Activate the [middleware](https://docs.djangoproject.com/en/5.1/topics/http/middleware/#activating-middleware):
+
+```python
+MIDDLEWARE = (
+    ...,
+    'logging_utilities.django_middlewares.add_request_context.AddToThreadContextMiddleware',
+    ...,
+)
+```
+
+Configure the filters `AddThreadContextFilter` and `JsonDjangoRequest` to add the request from the thread variable to the log record and make it json encodable. Use the `JsonFormatter` to format the request values
+
+```yaml
+filters:
+  add_request:
+    (): logging_utilities.filters.add_thread_context_filter.AddThreadContextFilter
+    contexts:
+    - context_key: request # Must be value 'request' as this is how the middleware adds the value.
+      logger_key: request
+  request_fields:
+    (): logging_utilities.filters.django_request.JsonDjangoRequest
+    attr_key: request # Must match the above logger_key
+    include_keys:
+      - request.path
+      - request.method
+formatters:
+  json:
+    (): logging_utilities.formatters.json_formatter.JsonFormatter
+    fmt:
+      time: asctime
+      level: levelname
+      logger: name
+      module: module
+      message: message
+      request:
+        path: request.path
+        method: request.method
+handlers:
+  console:
+    formatter: json
+    filters:
+      # Make sure to add the filters in the correct order.
+      # These filters modify the record in-place, and as the record is passed serially to each handler.
+      - add_request
+      - request_fields
+```
+
+### Case 10. Add stack traces to log records
+
+If you want to embed the stack trace of either an Exception or a log entry in general, you can do so with following additions to the logging call:
+
+```python
+import sys
+
+logger.debug('My log with stack info', stack_info=True)
+logger.critical('Exception happened', exc_info=sys.exc_info())
+```
+
+Or you simply call `logger.exception('Your message')` which automatically adds the exc_info. However this one is logging as in level `ERROR` and not `CRITICAL`.
+
+This will make the stack info available for the formatter. It can be used for instance like follows:
+
+```yaml
+[...]
+formatters:
+  json:
+    (): logging_utilities.formatters.json_formatter.JsonFormatter
+    fmt:
+      error:
+        stack_trace: exc_text
+      stack_info: stack_info
+      time: asctime
+      level: levelname
+      logger: name
+      module: module
+      message: message
+      request:
+        path: request.path
+        method: request.method
+```
+
+## Breaking Changes
+
+### Version 5.x.x Breaking Changes
+
+Previously, the fields `exc_text` and `stack_info` were always added to the log message if they existed. This behavior is slightly changed: instead of adding them to the message in any case, they are added to the record so that they can be configured via the `fmt` field in the logging configuration as described in [#case-10-add-stack-traces-to-log-records].
+
+### Version 4.x.x Breaking Changes
+
+From version 3.x.x to version 4.x.x there is the following breaking change:
+
+- The django request filter by default now reads the attribute `record.http_request` instead of
+the attribute `record.request`. There is however a new option `attr_name` in the filters constructor
+to manually specify the attribute name. See the example [Add parts of Django Request to JSON Output](#case-6-add-parts-of-django-request-to-json-output) for an example on how to use `attr_name` to be
+backward-compatible with 3.x.x
+
+### Version 3.x.x Breaking Changes
+
+From version 2.x.x to version 3.x.x there is the following breaking change:
+
+- JSON Formatter doesn't support anymore string constant in the `fmt` parameter. Now if you want to have a string constant in all of you JSON logs output, you need to use the [Constant Record Attribute Filter](#constant-record-attribute).
+
+### Version 2.x.x Breaking Changes
+
+From version 1.x.x to version 2.x.x there is the following breaking change:
+
+- Flask Attribute filter do not set anymore missing Flask attribute to empty string ! So if you configure the Flask attribute you must make sure that all attribute specified in the attribute list, exists. Also if you use the filter on a logger outside of a Flask Request context, the logger will raise a `ValueError` exception due to the missing Flask Request attribute. To avoid this you can use the new [LogRecordIgnoreMissing](#logrecordignoremissing).
+
 ## Credits
 
 The JSON Formatter implementation has been inspired by [MyColorfulDays/jsonformatter](https://github.com/MyColorfulDays/jsonformatter)
+
+The Request Var middleware has been inspired by [kindlycat/django-request-vars](https://github.com/kindlycat/django-request-vars)

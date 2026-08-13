@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools", "build", "setuptools-git-versioning<2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "logging-utilities"
+requires-python = ">=3.0"
+description = """\
+A collection of useful logging formatters and filters.\
+Logging Context, JSON Formatter, Extra Formatter, ISO Time Filter, Flask Filter, Django Filter, ...\
+"""
+readme = "README.md"
+license = "BSD-3-Clause"
+authors = [
+    {name = "Brice Schaffner", email = "brice.schaffner@swisstopo.ch"}
+]
+classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
+        "Topic :: Utilities",
+        "Topic :: System :: Logging",
+        "Topic :: Software Development :: Libraries",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Framework :: Django",
+        "Framework :: Flask"
+    ]
+keywords = ["context", "json", "logging", "flask", "django", "pyramid", "format"]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/geoadmin/lib-py-logging-utilities"
+Documentation = "https://github.com/geoadmin/lib-py-logging-utilities#readme"
+Source = "https://github.com/geoadmin/lib-py-logging-utilities"
+Tracker = "https://github.com/geoadmin/lib-py-logging-utilities/issues"
+
+[tool.setuptools.packages.find]
+include = ["logging_utilities*"]
+
+[tool.setuptools-git-versioning]
+enabled = true
+dev_template = "{tag}+git.{sha}"
+dirty_template = "{tag}+git.{sha}.dirty"

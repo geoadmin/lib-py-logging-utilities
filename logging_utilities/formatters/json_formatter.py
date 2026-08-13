@@ -1,23 +1,136 @@
 import json
 import logging
 import logging.config
+import re
 import sys
 import warnings
 from collections import OrderedDict
+from collections.abc import Mapping
+from collections.abc import MutableMapping
+from contextlib import contextmanager
+from functools import partial
+from logging import BASIC_FORMAT
+from logging import PercentStyle as _PercentStyle
+from logging import StrFormatStyle as _StrFormatStyle
+from logging import StringTemplateStyle as _StringTemplateStyle
 
 from logging_utilities.formatters import RECORD_DFT_ATTR
+from logging_utilities.log_record import _DictIgnoreMissing
+from logging_utilities.log_record import set_log_record_ignore_missing_factory
 
-if sys.version_info < (3, 0):
-    raise ImportError('Only python 3 is supported')
+if sys.version_info.major < 3:
+    raise ImportError('Only python 3 is supported')  # pragma: no cover
 
 # From python3.7, dict is ordered. Ordered dict are preferred in order to keep the json output
 # in the same order as its definition
-if sys.version_info >= (3, 7):
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
 else:
-    dictionary = OrderedDict
+    dictionary = OrderedDict  # pragma: no cover
 
 DEFAULT_FORMAT = dictionary([('levelname', 'levelname'), ('name', 'name'), ('message', 'message')])
+
+
+def _flatten_dict_gen(dct, parent_key, sep):
+    for key, value in dct.items():
+        new_key = parent_key + sep + key if parent_key else key
+        if isinstance(value, MutableMapping):
+            yield from flatten_dict(value, new_key, sep=sep).items()
+        else:
+            yield new_key, value
+
+
+def flatten_dict(dct, parent_key='', sep='.'):
+    return dict(_flatten_dict_gen(dct, parent_key, sep))
+
+
+def is_style_format_valid(style):
+    try:
+        style.validate()
+        return True
+    except ValueError:
+        return False
+
+
+if sys.version_info.major >= 3 and sys.version_info.minor > 7:
+    StrFormatStyle = _StrFormatStyle
+    StringTemplateStyle = _StringTemplateStyle
+    PercentStyle = _PercentStyle
+else:  # pragma: no cover
+    # Python version prior 3.8 don't have a validate() method on the Style class.
+    class ValidateStyleMixin():
+
+        def validate(self):
+            if not self.validation_pattern.search(self._fmt):
+                raise ValueError(
+                    "Invalid format '%s' for '%s' style" % (self._fmt, self.default_format[0])
+                )
+
+    class PercentStyle(_PercentStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(
+            r'%\(\w+\)[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%]', re.I
+        )
+
+    class StrFormatStyle(_StrFormatStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(
+            r'{[a-z_]\w*(![rsa])?(:[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%])?}', re.I
+        )
+
+    class StringTemplateStyle(_StringTemplateStyle, ValidateStyleMixin):
+        validation_pattern = re.compile(r'{[a-z_]\w*}', re.I)
+
+
+# python3.7 logging introduced _lock, python3.13 removed _acquireLock/_releaseLock
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
+
+    @contextmanager
+    def logging_lock():
+        # pylint: disable=protected-access
+        with logging._lock:
+            yield
+else:  # pragma: no cover
+
+    @contextmanager
+    def logging_lock():
+        # pylint: disable=protected-access,no-member
+        logging._acquireLock()
+        try:
+            yield
+        finally:
+            logging._releaseLock()
+
+
+class EnhancedPercentStyle(PercentStyle):
+    validation_pattern = re.compile(
+        r'%\([\w\.]+\)[#0+ -]*(\*|\d+)?(\.(\*|\d+))?[diouxefgcrsa%]', re.I
+    )
+
+    def __init__(self, fmt, ignore_missing=False):
+        super().__init__(fmt)
+        self.ignore_missing = ignore_missing
+
+    def _format(self, record):
+        dct = {**record.__dict__, **flatten_dict(record.__dict__)}
+        if self.ignore_missing:
+            return self._fmt % _DictIgnoreMissing(dct)
+        return self._fmt % dct
+
+
+_ENHANCED_STYLES = {
+    '%': (EnhancedPercentStyle, BASIC_FORMAT),
+    '{': (StrFormatStyle, '{levelname}:{name}:{message}'),
+    '$': (StringTemplateStyle, '${levelname}:${name}:${message}'),
+}
+
+
+def deep_merge(a, b):
+    result = a.copy()
+    for k, v in b.items():
+        if k in result and isinstance(result[k], dictionary) and isinstance(v, dictionary):
+            result[k] = deep_merge(result[k], v)
+        else:
+            result[k] = v
+    return result
 
 
 class JsonFormatter(logging.Formatter):
@@ -29,22 +142,28 @@ class JsonFormatter(logging.Formatter):
     def __init__(
         self,
         fmt=None,
+        fmtFile=None,
         datefmt=None,
         style='%',
         add_always_extra=False,
         filter_attributes=None,
         remove_empty=False,
+        ignore_missing=False,
         **kwargs
     ):
         """JSON Formatter constructor
 
         Args:
-            fmt: (dict)
+            fmt: (dict|string)
                 Format for the json output. It can be a string representing a json object or
                 a dictionary. The object defines the JSON output:
                     KEY   := key to use in the json output
                     VALUE := value to use in the json output, this can be either a static string,
                              a record attribute name or a format string
+            fmtFile: (string)
+                Path to a JSON file containing the fmt definition. This is an alternative to the fmt
+                parameter. If both are provided, the fmt parameter will be merged with the fmtFile
+                definition and will override conflicting values when necessary.
             datefmt: (string)
                 Format string for the date format
             style: (string)
@@ -60,17 +179,35 @@ class JsonFormatter(logging.Formatter):
                 This list is used to differentiate record attributes from log extra
                 attributes.
             remove_empty: (bool)
-                    If true the empty list, object or string in the output message are removed
+                If true the empty list, object or string in the output message are removed
+            ignore_missing: (bool)
+                If True, then all extra attributes from the log record that are missing (accessed
+                by the fmt parameter) will be replaced by an empty string instead of raising a
+                ValueError exception.
+                NOTE: This has an impact on all formater not only on this one,
+                see log_record.LogRecordIgnoreMissing.
             kwargs:
-                Additional parameters passed to json.dumps()
+                Additional parameters passed to json.dumps().
 
         Raises:
             TypeError:  When the fmt parameter is in a wrong type
             json.decoder.JSONDecodeError: When fmt is a string that don't describe a json object
         """
-        super().__init__(fmt='', datefmt=datefmt, style=style)
+        super().__init__(datefmt=datefmt, style=style)
 
-        self.json_fmt = self._parse_fmt(fmt)
+        fmt_from_file = None
+        if fmtFile is not None:
+            with open(fmtFile, 'r', encoding='utf-8') as file:
+                fmt_from_file = json.load(file, object_pairs_hook=dictionary)
+
+        if style == '%':
+            self._style_constructor = partial(
+                _ENHANCED_STYLES[style][0], ignore_missing=ignore_missing
+            )
+        else:
+            self._style_constructor = _ENHANCED_STYLES[style][0]
+        self._use_time = str(fmt).find('asctime') >= 0
+        self.json_fmt = self._parse_fmt(fmt, fmt_from_file)
         self.add_always_extra = add_always_extra
         self.filter_attributes = filter_attributes
         self.remove_empty = remove_empty
@@ -78,26 +215,38 @@ class JsonFormatter(logging.Formatter):
         # support for `json.dumps` parameters
         self.kwargs = kwargs
 
+        self.ignore_missing = ignore_missing
+        if ignore_missing:
+            set_log_record_ignore_missing_factory()
+
     @classmethod
-    def _parse_fmt(cls, fmt):
+    def _parse_fmt(cls, fmt, fmt_from_file):
+        fmt_dict = None
         if isinstance(fmt, str):
-            return json.loads(fmt, object_pairs_hook=dictionary)
-        if isinstance(fmt, (dictionary, OrderedDict)):
-            return fmt
-        if isinstance(fmt, dict):
+            fmt_dict = json.loads(fmt, object_pairs_hook=dictionary)
+        elif isinstance(fmt, (dictionary, OrderedDict)):
+            fmt_dict = fmt
+        elif isinstance(fmt, dict):  # pragma no cover
             warnings.warn(
                 "Current python version is lower than 3.7.0, the key's order of dict may be "
                 "different than the definition, please use `OrderedDict` instead.",
                 UserWarning
             )
-            return dictionary((k, fmt[k]) for k in sorted(fmt.keys()))
-        if fmt is None:
-            return DEFAULT_FORMAT
+            fmt_dict = dictionary((k, fmt[k]) for k in sorted(fmt.keys()))
+        elif fmt is not None:
+            raise TypeError(
+                '`{}` type is not supported, `fmt` must be json `str`, `OrderedDict` or `dict` type'
+                .format(type(fmt))
+            )  # pragma: no cover
 
-        raise TypeError(
-            '`{}` type is not supported, `fmt` must be json `str`, `OrderedDict` or `dict` type.'.
-            format(type(fmt))
-        )
+        if fmt_from_file is not None and fmt_dict is not None:
+            fmt_dict = deep_merge(fmt_from_file, fmt_dict)
+        elif fmt_from_file is not None and fmt_dict is None:
+            fmt_dict = fmt_from_file
+
+        if fmt_dict is None:
+            return DEFAULT_FORMAT
+        return fmt_dict
 
     @classmethod
     def _add_extra_to_message(cls, extra, message):
@@ -114,9 +263,9 @@ class JsonFormatter(logging.Formatter):
             return False
 
         extras = {key: record.__dict__[key] for key in record.__dict__ if is_extra_attribute(key)}
-        if sys.version_info >= (3, 7):
+        if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
             return extras
-        return dictionary((key, extras[key]) for key in sorted(extras.keys()))
+        return dictionary((key, extras[key]) for key in sorted(extras.keys()))  # pragma no cover
 
     def _add_list_to_message(self, record, lst, message):
         for value in lst:
@@ -140,12 +289,15 @@ class JsonFormatter(logging.Formatter):
                 if not self.remove_empty or intermediate_msg is not None:
                     message.append(intermediate_msg)
             elif isinstance(value, str):
-                # When the value is a string it can contain formatting strings (e.g. "%(asctime)s")
-                # therefore try to format it.
-                self._style._fmt = value  # pylint: disable=protected-access
-                intermediate_msg = super().formatMessage(record)
-                if not self.remove_empty or intermediate_msg != '':
+                intermediate_msg = self._get_string_key_value(record, value)
+                if self.remove_empty and not intermediate_msg:
+                    pass
+                else:
                     message.append(intermediate_msg)
+            else:
+                raise ValueError(
+                    'Invalid value type={} for value={} in fmt'.format(type(value), value)
+                )  # pragma no cover
 
     def _add_object_to_message(self, record, obj, message):
         for key, value in obj.items():
@@ -169,12 +321,62 @@ class JsonFormatter(logging.Formatter):
                 if self.remove_empty and message[key] == '':
                     del message[key]
             elif isinstance(value, str):
-                # When the value is a string it can contain formatting strings (e.g. "%(asctime)s")
-                # therefore try to format it.
-                self._style._fmt = value  # pylint: disable=protected-access
-                message[key] = super().formatMessage(record)
-                if self.remove_empty and message[key] == '':
+                message[key] = self._get_string_key_value(record, value)
+                if self.remove_empty and not message[key]:
                     del message[key]
+            else:
+                raise ValueError(
+                    'Invalid value type={} for value={} in fmt'.format(type(value), value)
+                )  # pragma no cover
+
+    def _get_dotted_key_value(self, record, str_value):
+        default_value = ''
+        if str_value.endswith('..'):
+            # if the dotted key has two trailing dot, this means that the value must be a list
+            # therefore set the default value to an empty list
+            default_value = []
+        elif str_value.endswith('.'):
+            # if the dotted key has a trailing dot, this mean that the value must be a dict
+            # therefore set the default value to an empty dictionary.
+            default_value = dictionary()
+
+        def get_dotted_key(dct, dotted_key):
+            if not isinstance(dct, (Mapping)):
+                raise ValueError(
+                    'Cannot get dotted key "{}" from "{}": '.format(dotted_key, dct) +
+                    'is not a record or dictionary'
+                )  # pragma: no cover
+            key = dotted_key
+            next_dotted_key = None
+            if '.' in dotted_key:
+                key, next_dotted_key = dotted_key.split('.', maxsplit=1)
+                if next_dotted_key not in ['', '.']:
+                    return get_dotted_key(dct.get(key, dictionary()), next_dotted_key)
+            if self.ignore_missing:
+                return dct.get(key, default_value)
+            try:
+                return dct[key]
+            except KeyError as error:
+                raise ValueError('Key "{}" not found in log record'.format(key)) from error
+
+        return get_dotted_key(record.__dict__, str_value)
+
+    def _get_string_key_value(self, record, value):
+        style = self._style_constructor(value)
+
+        if is_style_format_valid(style):
+            # The value contains a valid style formatting (e.g. %(asctime)s)
+            # therefore use the style formatter.
+            return style.format(record)
+
+        # Otherwise try to get a dotted key from the record
+        return self._get_dotted_key_value(record, value)
+
+    def usesTime(self):
+        """
+        Check if the format uses the creation time of the record.
+        """
+        return self._use_time
 
     def formatMessage(self, record):
         message = dictionary()
@@ -189,21 +391,19 @@ class JsonFormatter(logging.Formatter):
         if self.add_always_extra:
             extra = self._get_extra_attrs(record)
 
-        message = self.formatMessage(record)
-
-        if self.add_always_extra:
-            self._add_extra_to_message(extra, message)
-
         if record.exc_info:
             # Cache the traceback text to avoid converting it multiple times
             # (it's constant anyway)
             if not record.exc_text:
                 record.exc_text = self.formatException(record.exc_info)
-        if record.exc_text:
-            message['exc_text'] = record.exc_text
 
         if record.stack_info:
-            message['stack_info'] = self.formatStack(record.stack_info)
+            record.stack_info = self.formatStack(record.stack_info)
+
+        message = self.formatMessage(record)
+
+        if self.add_always_extra:
+            self._add_extra_to_message(extra, message)
 
         # When adding all extras, to avoid crash when a log message adds an extra with a non
         # serializable object, we add a default serializer.
@@ -214,7 +414,7 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(message, default=default, **self.kwargs)
 
 
-def basic_config(**kwargs):
+def basic_config(**kwargs):  # pragma: no cover
     """
     Do basic configuration for the logging system.
 
@@ -266,8 +466,7 @@ def basic_config(**kwargs):
     # Add thread safety in case someone mistakenly calls
     # basic_config() from multiple threads
     # pylint: disable=protected-access
-    logging._acquireLock()
-    try:
+    with logging_lock():
         if len(logging.root.handlers) > 0:
             return
 
@@ -305,5 +504,3 @@ def basic_config(**kwargs):
         if kwargs:
             keys = ', '.join(kwargs.keys())
             raise ValueError('Unrecognized argument(s): %s' % keys)
-    finally:
-        logging._releaseLock()

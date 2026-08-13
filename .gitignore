@@ -143,3 +143,6 @@ nose2-junit.xml
 # Example files for testing README.md examples
 example-config.yaml
 example.py
+
+# pipenv
+Pipfile.lock

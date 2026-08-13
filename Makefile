@@ -4,37 +4,33 @@ SHELL = /bin/bash
 
 
 CURRENT_DIR := $(shell pwd)
-VENV := $(CURRENT_DIR)/.venv
-DEV_REQUIREMENTS = $(CURRENT_DIR)/dev_requirements.txt
 
 # Test reports configuration
 TEST_REPORT_DIR ?= $(CURRENT_DIR)/tests/report
 TEST_REPORT_FILE ?= nose2-junit.xml
 
-# PyPI credentials
-PYPI_USER ?=
-PYPI_PASSWORD ?=
-
-# venv targets timestamps
-VENV_TIMESTAMP = $(VENV)/.timestamp
-DEV_REQUIREMENTS_TIMESTAMP = $(VENV)/.dev-requirements.timestamp
-
 # general targets timestamps
 TIMESTAMPS = .timestamps
-PREP_PACKAGING_TIMESTAMP = $(TIMESTAMPS)/.prep-packaging.timestamp
+REQUIREMENTS := $(TIMESTAMPS) $(PIP_FILE) $(PIP_FILE_LOCK)
 
 # Find all python files that are not inside a hidden directory (directory starting with .)
 PYTHON_FILES := $(shell find ./* -type d \( -path ./build -o -path ./dist \) -prune -false -o -type f -name "*.py" -print)
 
-PYTHON_VERSION ?= 3
-SYSTEM_PYTHON := python$(PYTHON_VERSION)
+# PIPENV files
+PIP_FILE = Pipfile
+PIP_FILE_LOCK = Pipfile.lock
+
+# default configuration
+ENV_FILE ?= .env.local
 
 # Commands
-PYTHON := $(VENV)/bin/python3
-PIP := $(VENV)/bin/pip3
-YAPF := $(VENV)/bin/yapf
-NOSE := $(VENV)/bin/nose2
-PYLINT := $(VENV)/bin/pylint
+PIPENV_RUN := pipenv run
+PYTHON := $(PIPENV_RUN) python3
+PIP := $(PIPENV_RUN) pip3
+YAPF := $(PIPENV_RUN) yapf
+ISORT := $(PIPENV_RUN) isort
+NOSE := $(PIPENV_RUN) nose2
+PYLINT := $(PIPENV_RUN) pylint
 
 PACKAGE_VERSION = $(shell awk '/^Version:/ {print $$2}' logging_utilities.egg-info/PKG-INFO)
 
@@ -59,24 +55,37 @@ help:
 	@echo "- publish            Tag and publish package to PyPI"
 	@echo -e " \033[1mCLEANING TARGETS\033[0m "
 	@echo "- clean              Clean genereated files"
-	@echo "- clean_venv         Clean python venv"
+	@echo "- clean-venv         Clean python venv"
+	@echo "- clean-all          Clean everything"
+	@echo "- python-version     Show python version"
 
 
 # Build targets. Calling setup is all that is needed for the local files to be installed as needed.
 
 .PHONY: setup
-setup: $(DEV_REQUIREMENTS_TIMESTAMP)
-
+setup: $(REQUIREMENTS)
+		pipenv install --dev
+		pipenv shell
 
 # linting target, calls upon yapf to make sure your code is easier to read and respects some conventions.
 
 .PHONY: format
-format: $(DEV_REQUIREMENTS_TIMESTAMP)
+format: $(REQUIREMENTS)
 	$(YAPF) -p -i --style .style.yapf $(PYTHON_FILES)
+	$(ISORT) $(PYTHON_FILES)
+
+
+.PHONY: ci-check-format
+ci-check-format: format
+	@if [[ -n `git status --porcelain` ]]; then \
+	 	>&2 echo "ERROR: the following files are not formatted correctly:"; \
+		>&2 git status --porcelain; \
+		exit 1; \
+	fi
 
 
 .PHONY: lint
-lint: $(DEV_REQUIREMENTS_TIMESTAMP)
+lint: $(REQUIREMENTS)
 	$(PYLINT) $(PYTHON_FILES)
 
 
@@ -95,40 +104,41 @@ test: $(DEV_REQUIREMENTS_TIMESTAMP)
 # Packaging target
 
 .PHONY: package
-package: $(PREP_PACKAGING_TIMESTAMP)
-	python3 setup.py sdist bdist_wheel
+package: $(DEV_REQUIREMENTS_TIMESTAMP)
+	$(PYTHON) -m build
 
 
 .PHONY: publish
-publish: publish-check clean test package
-	@echo "Tag and upload package version=$(PACKAGE_VERSION)"
-	@# Check if we use interactive credentials or not
-	@if [ -n "$(PYPI_PASSWORD)" ]; then \
-	    python3 -m twine upload -u $(PYPI_USER) -p $(PYPI_PASSWORD) dist/*; \
-	else \
-	    python3 -m twine upload dist/*; \
-	fi
-	git tag -am $(PACKAGE_VERSION) $(PACKAGE_VERSION)
-	git push origin $(PACKAGE_VERSION)
+publish: publish-check package
+	@echo "Upload package version=$(PACKAGE_VERSION)"
+	$(PYTHON) -m twine upload dist/*
 
 
 # Clean targets
 
-.PHONY: clean_venv
-clean_venv:
-	rm -rf $(VENV)
-
+.PHONY: clean-venv
+clean-venv:
+	pipenv --rm
 
 .PHONY: clean
-clean: clean_venv
+clean: clean-venv
 	@# clean python cache files
 	find . -name __pycache__ -type d -print0 | xargs -I {} -0 rm -rf "{}"
-	rm -rf $(PYTHON_LOCAL_DIR)
 	rm -rf $(TEST_REPORT_DIR)
 	rm -rf $(TIMESTAMPS)
 	rm -rf dist
 	rm -rf build
 	rm -rf *.egg-info
+	rm -f .coverage
+	rm Pipfile.lock
+
+.PHONY: clean-all
+clean-all: clean
+
+.PHONY: python-version
+python-version:
+	$(PYTHON) python --version
+
 
 
 # Actual builds targets with dependencies
@@ -147,16 +157,6 @@ $(DEV_REQUIREMENTS_TIMESTAMP): $(VENV_TIMESTAMP) $(DEV_REQUIREMENTS)
 	@touch $(DEV_REQUIREMENTS_TIMESTAMP)
 
 
-$(PREP_PACKAGING_TIMESTAMP): $(TIMESTAMPS)
-	python3 -m pip install --user --upgrade setuptools wheel twine
-	@touch $(PREP_PACKAGING_TIMESTAMP)
-
-
 publish-check:
 	@echo "Check if publish is allowed"
 	@if [ -n "`git status --porcelain`" ]; then echo "ERROR: Repo is dirty !" >&2; exit 1; fi
-	@# "Check if TAG=${PACKAGE_VERSION} already exits"
-	@if [ -n "`git ls-remote --tags --refs origin refs/tags/${PACKAGE_VERSION}`" ]; then \
-		echo "ERROR: Tag ${PACKAGE_VERSION} already exists on remote" >&2;  \
-		exit 1; \
-	fi

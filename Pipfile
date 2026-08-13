@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+# update to latest major
+build = "*"
+pylint = "*"
+isort = "*"
+yapf = "*"
+coverage = "*"
+django = "*"
+flask = "*"
+nose2 = "*"
+twine = "*"
+setuptools = "*"
+
+[requires]

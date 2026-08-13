@@ -1,6 +1,6 @@
 import logging
-from collections import OrderedDict
 import unittest
+from collections import OrderedDict
 
 from logging_utilities.formatters.extra_formatter import ExtraFormatter
 

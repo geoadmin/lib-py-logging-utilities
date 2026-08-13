@@ -11,12 +11,13 @@ from logging_utilities.filters.django_request import JsonDjangoRequest
 from logging_utilities.formatters.json_formatter import JsonFormatter
 
 # From python3.7, dict is ordered
-if sys.version_info >= (3, 7):
+if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
     dictionary = dict
 else:
     dictionary = OrderedDict
 
-settings.configure()
+if not settings.configured:
+    settings.configure()
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +29,21 @@ class RecordDjangoAttributesTest(unittest.TestCase):
         self.factory = RequestFactory()
 
     @classmethod
-    def _configure_django_filter(cls, _logger, include_keys=None, exclude_keys=None):
+    def _configure_django_filter(
+        cls, _logger, include_keys=None, exclude_keys=None, attr_name='http_request'
+    ):
         _logger.setLevel(logging.DEBUG)
 
         for handler in _logger.handlers:
-            django_filter = JsonDjangoRequest(include_keys=include_keys, exclude_keys=exclude_keys)
+            django_filter = JsonDjangoRequest(
+                include_keys=include_keys, exclude_keys=exclude_keys, attr_name=attr_name
+            )
             handler.addFilter(django_filter)
             formatter = JsonFormatter(
                 dictionary([
                     ('level', 'levelname'),
                     ('message', 'message'),
-                    ('request', 'request'),
+                    ('request', attr_name),
                 ]),
                 remove_empty=True
             )
@@ -93,13 +98,18 @@ class RecordDjangoAttributesTest(unittest.TestCase):
             self._configure_django_filter(
                 test_logger,
                 include_keys=[
-                    'request.META.REQUEST_METHOD', 'request.META.SERVER_NAME', 'request.environ'
+                    'my_http_request.META.REQUEST_METHOD',
+                    'my_http_request.META.SERVER_NAME',
+                    'my_http_request.environ'
                 ],
-                exclude_keys=['request.META.SERVER_NAME', 'request.environ.wsgi']
+                exclude_keys=['my_http_request.META.SERVER_NAME', 'my_http_request.environ.wsgi'],
+                attr_name='my_http_request'
             )
-            test_logger.info('Simple message', extra={'request': request})
+            test_logger.info('Simple message', extra={'my_http_request': request})
             test_logger.info(
-                'Composed message: %s', 'this is a composed message', extra={'request': request}
+                'Composed message: %s',
+                'this is a composed message',
+                extra={'my_http_request': request}
             )
         message1 = json.loads(ctx.output[0], object_pairs_hook=dictionary)
         message2 = json.loads(ctx.output[1], object_pairs_hook=dictionary)
@@ -155,3 +165,22 @@ class RecordDjangoAttributesTest(unittest.TestCase):
                         )]),
             msg="Second message differ"
         )
+
+    def test_django_request_jsonify_other(self):
+        requests = ({'a': 1}, OrderedDict([('a', 1)]), ['a'], 45, 45.5, 'a')
+        with self.assertLogs('test_formatter', level=logging.DEBUG) as ctx:
+            test_logger = logging.getLogger('test_formatter')
+            self._configure_django_filter(
+                test_logger,
+                include_keys=[
+                    'request.META.REQUEST_METHOD', 'request.META.SERVER_NAME', 'request.environ'
+                ],
+                exclude_keys=['request.META.SERVER_NAME', 'request.environ.wsgi'],
+                attr_name='request'
+            )
+            for request in requests:
+                test_logger.info('Simple message', extra={'request': request})
+
+        for i, request in enumerate(requests):
+            message = json.loads(ctx.output[i], object_pairs_hook=dictionary)
+            self.assertEqual(request, message['request'])

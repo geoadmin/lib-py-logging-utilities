@@ -36,10 +36,6 @@ load-plugins=
 # Pickle collected data for later comparisons.
 persistent=yes
 
-# When enabled, pylint would attempt to guess common misconfiguration and emit
-# user-friendly hints instead of false-positive error messages.
-suggestion-mode=yes
-
 # Allow loading of arbitrary C extensions. Extensions are imported into the
 # active Python interpreter and may run arbitrary code.
 unsafe-load-any-extension=no
@@ -66,10 +62,12 @@ disable=missing-docstring,
     unused-variable,
     pointless-string-statement,
     too-many-arguments,
+    too-many-positional-arguments,
     too-few-public-methods,
-    bad-continuation,   # bad-continuation doesn't comply with yapf, so lets
-                        # yapf correct indentation continuation issue
     useless-object-inheritance,
+    consider-using-f-string,
+    use-list-literal,
+    duplicate-code
 
 
 # Enable the message, report, category or checker with the given id(s). You can
@@ -203,13 +201,6 @@ max-line-length=100
 # Maximum number of lines in a module.
 max-module-lines=1000
 
-# List of optional constructs for which whitespace checking is disabled. `dict-
-# separator` is used to allow tabulation in dicts, etc.: {1  : 1,\n222: 2}.
-# `trailing-comma` allows a space between comma and closing bracket: (a, ).
-# `empty-line` allows space-only lines.
-no-space-check=trailing-comma,
-               dict-separator
-
 # Allow the body of a class to be on the same line as the declaration if body
 # contains single statement.
 single-line-class-stmt=no
@@ -283,10 +274,12 @@ function-naming-style=snake_case
 good-names=i,
            j,
            k,
+           tc,
            ex,
            fd,
            Run,
            dictionary,
+           maxDiff,
            _
 
 # Good variable names regexes, separated by a comma. If names match any regex,
@@ -494,7 +487,7 @@ preferred-modules=
 max-args=5
 
 # Maximum number of attributes for a class (see R0902).
-max-attributes=7
+max-attributes=10
 
 # Maximum number of boolean expressions in an if statement (see R0916).
 max-bool-expr=5
@@ -506,10 +499,10 @@ max-branches=16
 max-locals=15
 
 # Maximum number of parents for a class (see R0901).
-max-parents=7
+max-parents=10
 
 # Maximum number of public methods for a class (see R0904).
-max-public-methods=20
+max-public-methods=22
 
 # Maximum number of return / yield for function / method body.
 max-returns=6
@@ -525,6 +518,5 @@ min-public-methods=2
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "BaseException, Exception".
-overgeneral-exceptions=BaseException,
-                       Exception,
-                       StandardError
+overgeneral-exceptions=builtins.BaseException,
+                       builtins.Exception
